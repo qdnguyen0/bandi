@@ -248,3 +248,124 @@ func (db *DB) UpdateUserStripeID(userID int64, stripeID string) error {
 	_, err := db.conn.Exec("UPDATE users SET stripe_id = ? WHERE id = ?", stripeID, userID)
 	return err
 }
+
+// --- Reviews ---
+
+func (db *DB) GetReviewsByAgent(agentID int64) ([]models.Review, error) {
+	rows, err := db.conn.Query(
+		"SELECT id, agent_id, username, avatar, text, rating, created_at FROM reviews WHERE agent_id = ? ORDER BY created_at DESC",
+		agentID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list reviews: %w", err)
+	}
+	defer rows.Close()
+
+	var reviews []models.Review
+	for rows.Next() {
+		var r models.Review
+		if err := rows.Scan(&r.ID, &r.AgentID, &r.Username, &r.Avatar, &r.Text, &r.Rating, &r.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan review: %w", err)
+		}
+		reviews = append(reviews, r)
+	}
+	return reviews, nil
+}
+
+func (db *DB) GetAgentRating(agentID int64) (float64, int, error) {
+	var avg sql.NullFloat64
+	var count int
+	err := db.conn.QueryRow(
+		"SELECT AVG(CAST(rating AS REAL)), COUNT(*) FROM reviews WHERE agent_id = ?", agentID,
+	).Scan(&avg, &count)
+	if err != nil {
+		return 0, 0, err
+	}
+	if !avg.Valid {
+		return 0, 0, nil
+	}
+	return avg.Float64, count, nil
+}
+
+// SeedReviews populates reviews for agents that have none.
+func (db *DB) SeedReviews() error {
+	var count int
+	if err := db.conn.QueryRow("SELECT COUNT(*) FROM reviews").Scan(&count); err != nil {
+		return fmt.Errorf("count reviews: %w", err)
+	}
+	if count > 0 {
+		return nil
+	}
+
+	rows, err := db.conn.Query("SELECT id, name, category FROM agents")
+	if err != nil {
+		return fmt.Errorf("list agents for seed: %w", err)
+	}
+	defer rows.Close()
+
+	type agentInfo struct {
+		id       int64
+		name     string
+		category string
+	}
+	var agents []agentInfo
+	for rows.Next() {
+		var a agentInfo
+		if err := rows.Scan(&a.id, &a.name, &a.category); err != nil {
+			return fmt.Errorf("scan agent for seed: %w", err)
+		}
+		agents = append(agents, a)
+	}
+
+	seedReviews := map[string][]struct {
+		user   string
+		avatar string
+		text   string
+		rating int
+		date   string
+	}{
+		"NLP": {
+			{"neo_coder", "https://api.dicebear.com/9.x/avataaars/svg?seed=neo", "Best NLP agent I have used. The summarization quality is insane.", 5, "2026-02-28"},
+			{"data_witch", "https://api.dicebear.com/9.x/avataaars/svg?seed=witch", "Solid for document generation. Could use better streaming support.", 4, "2026-02-15"},
+			{"ml_ronin", "https://api.dicebear.com/9.x/avataaars/svg?seed=ronin", "Handles complex prompts gracefully. Worth every penny.", 5, "2026-01-20"},
+		},
+		"Vision": {
+			{"cv_empress", "https://api.dicebear.com/9.x/avataaars/svg?seed=empress", "Detection accuracy is top-tier. Latency could be better on CPU.", 4, "2026-03-10"},
+			{"robo_sam", "https://api.dicebear.com/9.x/avataaars/svg?seed=sam", "Excellent multimodal support. Integrated into our pipeline in minutes.", 5, "2026-02-05"},
+			{"art_hacker", "https://api.dicebear.com/9.x/avataaars/svg?seed=hacker", "Image quality rivals the best tools on the market. Local GPU mode is a huge plus.", 5, "2026-03-14"},
+		},
+		"Automation": {
+			{"devops_ninja", "https://api.dicebear.com/9.x/avataaars/svg?seed=ninja", "Replaced 3 Zapier workflows with this. Incredibly flexible.", 5, "2026-03-12"},
+			{"cloud_rider", "https://api.dicebear.com/9.x/avataaars/svg?seed=rider", "DAG builder is clean. Retry logic saved us during a production outage.", 5, "2026-02-28"},
+			{"api_ghost", "https://api.dicebear.com/9.x/avataaars/svg?seed=ghost", "Good agent but documentation could be more detailed.", 4, "2026-01-15"},
+		},
+		"Analytics": {
+			{"analytics_ace", "https://api.dicebear.com/9.x/avataaars/svg?seed=ace", "Anomaly detection caught a billing issue we missed for months. Paid for itself day one.", 5, "2026-03-05"},
+			{"bi_baron", "https://api.dicebear.com/9.x/avataaars/svg?seed=baron", "Dashboards look great but custom SQL support needs work.", 4, "2026-02-10"},
+			{"data_nomad", "https://api.dicebear.com/9.x/avataaars/svg?seed=nomad", "Schema discovery is magic. Generated correct JOINs across 12 tables.", 5, "2026-03-02"},
+		},
+		"Security": {
+			{"sec_phantom", "https://api.dicebear.com/9.x/avataaars/svg?seed=phantom", "Found 14 critical vulns in our codebase that Snyk missed. Absolute unit.", 5, "2026-03-17"},
+			{"pen_tester", "https://api.dicebear.com/9.x/avataaars/svg?seed=tester", "SOC2 report generation alone is worth the price. Clean and thorough.", 5, "2026-03-01"},
+			{"blue_team", "https://api.dicebear.com/9.x/avataaars/svg?seed=blue", "DAST scanning is solid. Would love to see container image scanning next.", 4, "2026-02-20"},
+		},
+	}
+
+	for _, a := range agents {
+		cat := a.category
+		reviews, ok := seedReviews[cat]
+		if !ok {
+			reviews = seedReviews["NLP"] // fallback
+		}
+		for _, rv := range reviews {
+			_, err := db.conn.Exec(
+				"INSERT INTO reviews (agent_id, username, avatar, text, rating, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+				a.id, rv.user, rv.avatar, rv.text, rv.rating, rv.date,
+			)
+			if err != nil {
+				return fmt.Errorf("seed review for agent %d: %w", a.id, err)
+			}
+		}
+	}
+	return nil
+}

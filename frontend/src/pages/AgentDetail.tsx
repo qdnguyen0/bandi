@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import type { Agent } from '../types'
-import { fetchAgent, purchaseAgent } from '../api'
+import { fetchAgent, purchaseAgent, fetchAgentSummary } from '../api'
 
 // Use mock data when API is unavailable (same source as Marketplace)
 import { MOCK_AGENTS } from './Marketplace'
@@ -28,6 +28,22 @@ export default function AgentDetail() {
   const [loading, setLoading] = useState(true)
   const [purchasing, setPurchasing] = useState(false)
   const [message, setMessage] = useState('')
+  const [summary, setSummary] = useState<string | null>(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [summaryError, setSummaryError] = useState<string | null>(null)
+  const [showSummary, setShowSummary] = useState(false)
+  const summaryRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!showSummary) return
+    const handleClick = (e: MouseEvent) => {
+      if (summaryRef.current && !summaryRef.current.contains(e.target as Node)) {
+        setShowSummary(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showSummary])
 
   useEffect(() => {
     if (!id) return
@@ -52,6 +68,25 @@ export default function AgentDetail() {
       setMessage(err instanceof Error ? err.message : 'Purchase failed')
     } finally {
       setPurchasing(false)
+    }
+  }
+
+  const handleSummary = async () => {
+    if (!agent || summaryLoading) return
+    if (summary) {
+      setShowSummary(prev => !prev)
+      return
+    }
+    setSummaryLoading(true)
+    setSummaryError(null)
+    setShowSummary(true)
+    try {
+      const result = await fetchAgentSummary(agent)
+      setSummary(result)
+    } catch (err) {
+      setSummaryError(err instanceof Error ? err.message : 'Failed to generate summary')
+    } finally {
+      setSummaryLoading(false)
     }
   }
 
@@ -198,6 +233,65 @@ export default function AgentDetail() {
                 Free Trial
               </motion.button>
             )}
+            <div className="relative">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleSummary}
+                disabled={summaryLoading}
+                className="flex-1 sm:flex-none min-w-32 px-6 py-2 font-bold tracking-widest uppercase text-sm cursor-pointer"
+                style={{
+                  color: '#ff00ff',
+                  border: '1px solid rgba(255,0,255,0.4)',
+                  background: summaryLoading ? 'rgba(255,0,255,0.15)' : 'rgba(255,0,255,0.05)',
+                  transition: 'all 0.3s ease',
+                }}
+              >
+                {summaryLoading ? 'Generating...' : 'AI Summary'}
+              </motion.button>
+
+              {/* AI Summary popup bubble */}
+              <AnimatePresence>
+                {showSummary && (
+                  <motion.div
+                    ref={summaryRef}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute left-0 bottom-full mb-2 z-50 w-80 p-4 rounded-lg"
+                    style={{
+                      background: 'rgba(15,5,25,0.95)',
+                      border: '1px solid rgba(255,0,255,0.3)',
+                      backdropFilter: 'blur(16px)',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.6), 0 0 15px rgba(255,0,255,0.15)',
+                      maxHeight: '200px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                    }}
+                  >
+                    <button
+                      onClick={() => setShowSummary(false)}
+                      className="absolute top-2 right-2.5 text-white/30 hover:text-white/60 text-xs font-mono cursor-pointer z-10"
+                    >
+                      x
+                    </button>
+                    <div className="text-[9px] text-white/25 font-mono uppercase tracking-widest mb-2 shrink-0">AI Summary</div>
+                    <div className="overflow-y-auto min-h-0 pr-3" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,0,255,0.3) transparent' }}>
+                      {summaryLoading && (
+                        <div className="text-sm text-white/40 font-mono animate-pulse">Generating...</div>
+                      )}
+                      {summaryError && (
+                        <p className="text-sm text-red-400 font-mono">{summaryError}</p>
+                      )}
+                      {summary && (
+                        <p className="text-sm text-white/60 font-mono leading-relaxed">{summary}</p>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
 
           {/* Status message */}

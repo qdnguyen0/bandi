@@ -3,22 +3,24 @@ package config
 import "os"
 
 type Config struct {
-	DBPath      string
-	VaultPath   string
-	JWTSecret   string
-	StripeKey   string
-	StripeWHSec string
-	Port        string
+	DBPath       string
+	VaultPath    string
+	JWTSecret    string
+	StripeKey    string
+	StripeWHSec  string
+	GeminiKey string
+	Port         string
 }
 
 func Load() Config {
 	return Config{
-		DBPath:      envOr("DB_PATH", "./data/bandiAI.db"),
-		VaultPath:   envOr("VAULT_PATH", "./data/vault"),
-		JWTSecret:   envOr("JWT_SECRET", "bandiAI-dev-secret-change-me"),
-		StripeKey:   os.Getenv("STRIPE_KEY"),
-		StripeWHSec: os.Getenv("STRIPE_WEBHOOK_SECRET"),
-		Port:        envOr("PORT", "8080"),
+		DBPath:       envOr("DB_PATH", "./data/bandiAI.db"),
+		VaultPath:    envOr("VAULT_PATH", "./data/vault"),
+		JWTSecret:    envOr("JWT_SECRET", "bandiAI-dev-secret-change-me"),
+		StripeKey:    os.Getenv("STRIPE_KEY"),
+		StripeWHSec:  os.Getenv("STRIPE_WEBHOOK_SECRET"),
+		GeminiKey: os.Getenv("GEMINI_API_KEY"),
+		Port:         envOr("PORT", "8080"),
 	}
 }
 

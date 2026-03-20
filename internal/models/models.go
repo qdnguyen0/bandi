@@ -25,6 +25,19 @@ type Agent struct {
 	Category    string    `json:"category"`
 	Downloads   int       `json:"downloads"`
 	CreatedAt   time.Time `json:"created_at"`
+	Rating      float64   `json:"rating"`
+	ReviewCount int       `json:"review_count"`
+	Reviews     []Review  `json:"reviews,omitempty"`
+}
+
+type Review struct {
+	ID        int64     `json:"id"`
+	AgentID   int64     `json:"agent_id"`
+	Username  string    `json:"user"`
+	Avatar    string    `json:"avatar"`
+	Text      string    `json:"text"`
+	Rating    int       `json:"rating"`
+	CreatedAt time.Time `json:"date"`
 }
 
 type Purchase struct {

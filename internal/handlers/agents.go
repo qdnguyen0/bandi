@@ -43,6 +43,12 @@ func (h *AgentHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	for i := range agents {
+		rating, count, _ := h.db.GetAgentRating(agents[i].ID)
+		agents[i].Rating = rating
+		agents[i].ReviewCount = count
+	}
+
 	jsonResp(w, http.StatusOK, models.AgentListResponse{
 		Agents: agents,
 		Total:  total,
@@ -82,6 +88,12 @@ func (h *AgentHandler) Get(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "agent not found", http.StatusNotFound)
 		return
 	}
+
+	reviews, _ := h.db.GetReviewsByAgent(id)
+	agent.Reviews = reviews
+	rating, count, _ := h.db.GetAgentRating(id)
+	agent.Rating = rating
+	agent.ReviewCount = count
 
 	jsonResp(w, http.StatusOK, agent)
 }

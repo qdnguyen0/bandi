@@ -27,11 +27,16 @@ func main() {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
 
+	if err := db.SeedReviews(); err != nil {
+		log.Printf("warning: failed to seed reviews: %v", err)
+	}
+
 	// Initialize handlers
 	authH := handlers.NewAuthHandler(db, cfg.JWTSecret)
 	agentH := handlers.NewAgentHandler(db, cfg.VaultPath)
 	purchaseH := handlers.NewPurchaseHandler(db)
 	stripeH := handlers.NewStripeHandler(db, cfg.StripeWHSec)
+	summaryH := handlers.NewSummaryHandler(cfg.GeminiKey)
 
 	// Router
 	r := chi.NewRouter()
@@ -48,6 +53,7 @@ func main() {
 	r.Get("/api/agents", agentH.List)
 	r.Get("/api/agents/suggest", agentH.Suggest)
 	r.Get("/api/agents/{id}", agentH.Get)
+	r.Post("/api/agents/{id}/summary", summaryH.Generate)
 	r.Post("/api/webhooks/stripe", stripeH.HandleWebhook)
 
 	// Protected routes

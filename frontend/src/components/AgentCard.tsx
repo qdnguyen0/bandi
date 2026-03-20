@@ -1,6 +1,8 @@
-import { motion } from 'framer-motion'
+import { useState, useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import type { Agent } from '../types'
+import { fetchAgentSummary } from '../api'
 
 interface Props {
   agent: Agent
@@ -40,6 +42,41 @@ function StarRating({ rating }: { rating: number }) {
 export default function AgentCard({ agent, index = 0 }: Props) {
   const navigate = useNavigate()
   const catStyle = getCategoryStyle(agent.category)
+  const [summary, setSummary] = useState<string | null>(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [summaryError, setSummaryError] = useState<string | null>(null)
+  const [showSummary, setShowSummary] = useState(false)
+  const summaryRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!showSummary) return
+    const handleClick = (e: MouseEvent) => {
+      if (summaryRef.current && !summaryRef.current.contains(e.target as Node)) {
+        setShowSummary(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showSummary])
+
+  const handleSummary = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (summary) {
+      setShowSummary(prev => !prev)
+      return
+    }
+    setSummaryLoading(true)
+    setSummaryError(null)
+    setShowSummary(true)
+    try {
+      const result = await fetchAgentSummary(agent)
+      setSummary(result)
+    } catch (err) {
+      setSummaryError(err instanceof Error ? err.message : 'Failed to generate summary')
+    } finally {
+      setSummaryLoading(false)
+    }
+  }
 
   return (
     <motion.div
@@ -185,34 +222,94 @@ export default function AgentCard({ agent, index = 0 }: Props) {
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
-            <span>{agent.comments?.length ?? 0}</span>
+            <span>{agent.review_count}</span>
           </div>
           <div className="flex items-center gap-1 text-[10px] text-white/30 font-mono">
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
             </svg>
-            <span>{agent.review_count}</span>
+            <span>{agent.rating > 0 ? agent.rating.toFixed(1) : '—'}</span>
           </div>
         </div>
 
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="text-[10px] font-bold tracking-widest uppercase px-3 py-1 font-mono"
-          style={{
-            color: '#00ffff',
-            border: '1px solid rgba(0,255,255,0.3)',
-            background: 'rgba(0,255,255,0.05)',
-            transition: 'all 0.2s ease',
-          }}
-          onClick={e => {
-            e.stopPropagation()
-            navigate(`/agents/${agent.id}`)
-          }}
-        >
-          View
-        </motion.button>
+        <div className="flex items-center gap-2">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="text-[10px] font-bold tracking-widest uppercase px-2.5 py-1 font-mono"
+            style={{
+              color: '#ff00ff',
+              border: '1px solid rgba(255,0,255,0.3)',
+              background: summaryLoading ? 'rgba(255,0,255,0.15)' : 'rgba(255,0,255,0.05)',
+              transition: 'all 0.2s ease',
+            }}
+            onClick={handleSummary}
+            disabled={summaryLoading}
+          >
+            {summaryLoading ? '...' : 'AI'}
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="text-[10px] font-bold tracking-widest uppercase px-3 py-1 font-mono"
+            style={{
+              color: '#00ffff',
+              border: '1px solid rgba(0,255,255,0.3)',
+              background: 'rgba(0,255,255,0.05)',
+              transition: 'all 0.2s ease',
+            }}
+            onClick={e => {
+              e.stopPropagation()
+              navigate(`/agents/${agent.id}`)
+            }}
+          >
+            View
+          </motion.button>
+        </div>
       </div>
+
+      {/* AI Summary popup bubble */}
+      <AnimatePresence>
+        {showSummary && (
+          <motion.div
+            ref={summaryRef}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.15 }}
+            className="absolute inset-x-3 bottom-16 z-50 p-3 rounded-lg"
+            style={{
+              background: 'rgba(15,5,25,0.95)',
+              border: '1px solid rgba(255,0,255,0.3)',
+              backdropFilter: 'blur(16px)',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.6), 0 0 15px rgba(255,0,255,0.15)',
+              maxHeight: '160px',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={e => { e.stopPropagation(); setShowSummary(false) }}
+              className="absolute top-1.5 right-2 text-white/30 hover:text-white/60 text-xs font-mono cursor-pointer z-10"
+            >
+              x
+            </button>
+            <div className="text-[9px] text-white/25 font-mono uppercase tracking-widest mb-1.5 shrink-0">AI Summary</div>
+            <div className="overflow-y-auto min-h-0 pr-3" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,0,255,0.3) transparent' }}>
+              {summaryLoading && (
+                <div className="text-[11px] text-white/40 font-mono animate-pulse">Generating...</div>
+              )}
+              {summaryError && (
+                <div className="text-[11px] text-red-400 font-mono">{summaryError}</div>
+              )}
+              {summary && (
+                <p className="text-[11px] text-white/60 font-mono leading-relaxed">{summary}</p>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Animated border on hover */}
       <motion.div

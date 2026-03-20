@@ -51,6 +51,9 @@ interface ApiAgent {
   downloads: number
   dev_id: number
   created_at: string
+  rating?: number
+  review_count?: number
+  reviews?: { id: number; user: string; avatar: string; text: string; rating: number; date: string }[]
   [key: string]: unknown
 }
 
@@ -76,13 +79,13 @@ function mapAgent(a: ApiAgent): Agent {
     creator_id: a.dev_id,
     avatar: agentAvatar(a.name, a.category ?? ''),
     developer: '',
-    rating: 0,
-    review_count: 0,
+    rating: a.rating ?? 0,
+    review_count: a.review_count ?? 0,
     source_size: '',
     language: '',
     license: '',
     last_updated: a.created_at,
-    comments: [],
+    comments: a.reviews ?? [],
   } as Agent
 }
 
@@ -124,4 +127,22 @@ export interface AgentSuggestion {
 export async function suggestAgents(q: string, limit = 5): Promise<AgentSuggestion[]> {
   const qs = new URLSearchParams({ q, limit: String(limit) })
   return request<AgentSuggestion[]>(`/agents/suggest?${qs}`)
+}
+
+export async function fetchAgentSummary(agent: Agent): Promise<string> {
+  const body = {
+    description: agent.description,
+    rating: agent.rating,
+    review_count: agent.review_count,
+    comments: (agent.comments ?? []).map(c => ({
+      user: c.user,
+      text: c.text,
+      rating: c.rating,
+    })),
+  }
+  const res = await request<{ summary: string }>(`/agents/${agent.id}/summary`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+  return res.summary
 }
