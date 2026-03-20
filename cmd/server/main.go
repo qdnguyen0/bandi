@@ -34,7 +34,7 @@ func main() {
 	// Initialize handlers
 	authH := handlers.NewAuthHandler(db, cfg.JWTSecret)
 	agentH := handlers.NewAgentHandler(db, cfg.VaultPath)
-	purchaseH := handlers.NewPurchaseHandler(db)
+	purchaseH := handlers.NewPurchaseHandler(db, cfg.StripeKey)
 	stripeH := handlers.NewStripeHandler(db, cfg.StripeWHSec)
 	summaryH := handlers.NewSummaryHandler(cfg.GeminiKey)
 
@@ -66,6 +66,8 @@ func main() {
 		r.Get("/api/agents/{id}/download", agentH.Download)
 		r.Post("/api/purchases", purchaseH.Create)
 		r.Get("/api/purchases", purchaseH.List)
+		r.Get("/api/purchases/agent/{agentID}", purchaseH.Status)
+		r.Post("/api/checkout", purchaseH.Checkout)
 	})
 
 	// Serve frontend static files

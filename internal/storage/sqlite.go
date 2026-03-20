@@ -215,6 +215,30 @@ func (db *DB) IncrementDownloads(id int64) error {
 
 // --- Purchases ---
 
+// GetActivePurchase returns the active purchase for a user+agent if one exists.
+// A "buy" purchase is always active. A "rent" or "trial" is active only if not expired.
+func (db *DB) GetActivePurchase(userID, agentID int64) (*models.Purchase, error) {
+	row := db.conn.QueryRow(
+		`SELECT id, user_id, agent_id, type, expiry_date, created_at FROM purchases
+		 WHERE user_id = ? AND agent_id = ?
+		   AND (type = 'buy' OR expiry_date IS NULL OR expiry_date > CURRENT_TIMESTAMP)
+		 ORDER BY created_at DESC LIMIT 1`,
+		userID, agentID,
+	)
+	var p models.Purchase
+	var expiry sql.NullTime
+	if err := row.Scan(&p.ID, &p.UserID, &p.AgentID, &p.Type, &expiry, &p.CreatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get active purchase: %w", err)
+	}
+	if expiry.Valid {
+		p.ExpiryDate = &expiry.Time
+	}
+	return &p, nil
+}
+
 func (db *DB) CreatePurchase(userID, agentID int64, purchaseType string, expiry *time.Time) (*models.Purchase, error) {
 	res, err := db.conn.Exec(
 		"INSERT INTO purchases (user_id, agent_id, type, expiry_date) VALUES (?, ?, ?, ?)",

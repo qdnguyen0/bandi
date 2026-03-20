@@ -131,6 +131,24 @@ export async function purchaseAgent(
   })
 }
 
+export async function createCheckout(
+  agentId: number,
+  type: 'buy' | 'rent' | 'trial',
+): Promise<{ url?: string; purchase?: object }> {
+  return request<{ url?: string; purchase?: object }>('/checkout', {
+    method: 'POST',
+    body: JSON.stringify({ agent_id: agentId, type }),
+  })
+}
+
+export interface PurchaseStatus {
+  purchase: { id: number; type: string; expiry_date?: string } | null
+}
+
+export async function fetchPurchaseStatus(agentId: number): Promise<PurchaseStatus> {
+  return request<PurchaseStatus>(`/purchases/agent/${agentId}`)
+}
+
 export interface AgentSuggestion {
   id: number
   name: string

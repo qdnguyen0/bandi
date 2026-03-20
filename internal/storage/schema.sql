@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS purchases (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL REFERENCES users(id),
     agent_id INTEGER NOT NULL REFERENCES agents(id),
-    type TEXT NOT NULL CHECK(type IN ('buy', 'rent')),
+    type TEXT NOT NULL CHECK(type IN ('buy', 'rent', 'trial')),
     expiry_date DATETIME,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

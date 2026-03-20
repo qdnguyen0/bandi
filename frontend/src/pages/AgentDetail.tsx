@@ -2,8 +2,11 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Agent } from '../types'
-import { fetchAgent, purchaseAgent, fetchAgentSummary, fetchReviews } from '../api'
-import type { ReviewsResponse } from '../api'
+import { fetchAgent, createCheckout, fetchAgentSummary, fetchReviews, fetchPurchaseStatus } from '../api'
+import type { ReviewsResponse, PurchaseStatus } from '../api'
+import { useAuth } from '../context/AuthContext'
+import AuthModal from '../components/AuthModal'
+import CheckoutModal from '../components/CheckoutModal'
 
 // Use mock data when API is unavailable (same source as Marketplace)
 import { MOCK_AGENTS } from './Marketplace'
@@ -25,6 +28,7 @@ function StarRating({ rating, size = 'sm' }: { rating: number; size?: 'sm' | 'md
 export default function AgentDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [agent, setAgent] = useState<Agent | null>(null)
   const [loading, setLoading] = useState(true)
   const [purchasing, setPurchasing] = useState(false)
@@ -38,6 +42,13 @@ export default function AgentDetail() {
   const [reviewPage, setReviewPage] = useState(1)
   const [reviewLoading, setReviewLoading] = useState(false)
   const reviewsRef = useRef<HTMLDivElement>(null)
+
+  // Auth gate + checkout state
+  const [showAuth, setShowAuth] = useState(false)
+  const [showCheckout, setShowCheckout] = useState(false)
+  const [pendingType, setPendingType] = useState<'buy' | 'rent' | 'trial' | null>(null)
+  const [checkoutType, setCheckoutType] = useState<'buy' | 'rent'>('buy')
+  const [purchaseStatus, setPurchaseStatus] = useState<PurchaseStatus | null>(null)
 
   useEffect(() => {
     if (!showSummary) return
@@ -72,6 +83,17 @@ export default function AgentDetail() {
       .finally(() => setReviewLoading(false))
   }, [agent, reviewPage])
 
+  // Fetch purchase status for logged-in user
+  useEffect(() => {
+    if (!agent || !user) {
+      setPurchaseStatus(null)
+      return
+    }
+    fetchPurchaseStatus(agent.id)
+      .then(setPurchaseStatus)
+      .catch(() => setPurchaseStatus(null))
+  }, [agent, user])
+
   const handlePageChange = (page: number) => {
     setReviewPage(page)
     reviewsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -79,14 +101,48 @@ export default function AgentDetail() {
 
   const handlePurchase = async (type: 'buy' | 'rent' | 'trial') => {
     if (!agent) return
+
+    // Auth gate: if not logged in, show auth modal
+    if (!user) {
+      setPendingType(type)
+      setShowAuth(true)
+      return
+    }
+
+    await executePurchase(type)
+  }
+
+  const executePurchase = async (type: 'buy' | 'rent' | 'trial') => {
+    if (!agent) return
     setPurchasing(true)
     try {
-      const res = await purchaseAgent(agent.id, type)
-      setMessage(res.message)
+      const res = await createCheckout(agent.id, type)
+      if (res.url) {
+        // Stripe redirect
+        window.location.href = res.url
+        return
+      }
+      if (type === 'trial') {
+        setMessage('Trial activated successfully!')
+        // Refresh purchase status
+        fetchPurchaseStatus(agent.id).then(setPurchaseStatus).catch(() => {})
+      } else {
+        // Simulated mode — show checkout modal
+        setCheckoutType(type as 'buy' | 'rent')
+        setShowCheckout(true)
+      }
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Purchase failed')
     } finally {
       setPurchasing(false)
+    }
+  }
+
+  const handleAuthSuccess = () => {
+    if (pendingType) {
+      const type = pendingType
+      setPendingType(null)
+      executePurchase(type)
     }
   }
 
@@ -217,40 +273,64 @@ export default function AgentDetail() {
 
           {/* Actions */}
           <div className="flex flex-wrap gap-3 mb-8">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => handlePurchase('buy')}
-              disabled={purchasing}
-              className="btn-neon flex-1 sm:flex-none min-w-32"
-            >
-              Buy ${agent.price}
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => handlePurchase('rent')}
-              disabled={purchasing}
-              className="btn-neon-purple flex-1 sm:flex-none min-w-32"
-            >
-              Rent ${agent.rental_rate}/mo
-            </motion.button>
-            {agent.has_trial && (
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => handlePurchase('trial')}
-                disabled={purchasing}
-                className="flex-1 sm:flex-none min-w-32 px-6 py-2 font-bold tracking-widest uppercase text-sm cursor-pointer"
+            {purchaseStatus?.purchase ? (
+              <div
+                className="flex items-center gap-2 px-6 py-2 rounded text-sm font-bold font-mono uppercase tracking-widest"
                 style={{
                   color: '#00ff88',
-                  border: '1px solid rgba(0,255,136,0.4)',
-                  background: 'rgba(0,255,136,0.05)',
-                  transition: 'all 0.3s ease',
+                  background: 'rgba(0,255,136,0.08)',
+                  border: '1px solid rgba(0,255,136,0.3)',
+                  boxShadow: '0 0 10px rgba(0,255,136,0.1)',
                 }}
               >
-                Free Trial
-              </motion.button>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                {purchaseStatus.purchase.type === 'buy' ? 'Purchased' : purchaseStatus.purchase.type === 'rent' ? 'Rented' : 'Trial Active'}
+                {purchaseStatus.purchase.expiry_date && (
+                  <span className="text-[10px] text-white/30 font-normal ml-2">
+                    expires {new Date(purchaseStatus.purchase.expiry_date).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => handlePurchase('buy')}
+                  disabled={purchasing}
+                  className="btn-neon flex-1 sm:flex-none min-w-32"
+                >
+                  Buy ${agent.price}
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => handlePurchase('rent')}
+                  disabled={purchasing}
+                  className="btn-neon-purple flex-1 sm:flex-none min-w-32"
+                >
+                  Rent ${agent.rental_rate}/mo
+                </motion.button>
+                {agent.has_trial && (
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handlePurchase('trial')}
+                    disabled={purchasing}
+                    className="flex-1 sm:flex-none min-w-32 px-6 py-2 font-bold tracking-widest uppercase text-sm cursor-pointer"
+                    style={{
+                      color: '#00ff88',
+                      border: '1px solid rgba(0,255,136,0.4)',
+                      background: 'rgba(0,255,136,0.05)',
+                      transition: 'all 0.3s ease',
+                    }}
+                  >
+                    Free Trial
+                  </motion.button>
+                )}
+              </>
             )}
             <div className="relative">
               <motion.button
@@ -395,6 +475,29 @@ export default function AgentDetail() {
           </motion.div>
         )}
       </div>
+
+      {/* Auth modal (centered overlay) */}
+      <AuthModal
+        open={showAuth}
+        onClose={() => { setShowAuth(false); setPendingType(null) }}
+        centered
+        onSuccess={handleAuthSuccess}
+      />
+
+      {/* Checkout modal (simulated Stripe) */}
+      {agent && (
+        <CheckoutModal
+          open={showCheckout}
+          onClose={() => setShowCheckout(false)}
+          onSuccess={() => {
+            setShowCheckout(false)
+            setMessage('Purchase completed successfully!')
+            if (agent) fetchPurchaseStatus(agent.id).then(setPurchaseStatus).catch(() => {})
+          }}
+          agent={agent}
+          purchaseType={checkoutType}
+        />
+      )}
     </main>
   )
 }
