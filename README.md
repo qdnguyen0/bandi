@@ -207,6 +207,75 @@ Typography uses **JetBrains Mono** (body/code) and **Orbitron** (display heading
 
 ---
 
+## Testing
+
+### Backend (Go)
+
+Run all Go tests:
+
+```bash
+go test ./...
+```
+
+Run with verbose output:
+
+```bash
+go test ./internal/... -v
+```
+
+Run with coverage summary:
+
+```bash
+go test ./internal/... -cover
+```
+
+Generate an HTML coverage report:
+
+```bash
+go test ./internal/... -coverprofile=coverage.out
+go tool cover -html=coverage.out -o coverage.html
+open coverage.html
+```
+
+**Current coverage:**
+
+| Package              | Coverage |
+|----------------------|----------|
+| `internal/handlers`  | 17.1%    |
+| `internal/storage`   | 15.5%    |
+
+Key tested functions: `GetActivePurchase` (90%), `CreatePurchase` (80%), `Checkout` handler (51%), `Create` handler (61%), `Status` handler (64%).
+
+### Frontend (React)
+
+Run all frontend tests:
+
+```bash
+cd frontend && npm test
+```
+
+Run with coverage:
+
+```bash
+cd frontend && npx vitest run --coverage
+```
+
+Run in watch mode during development:
+
+```bash
+cd frontend && npx vitest
+```
+
+**Current coverage:**
+
+| File               | Stmts  | Branch | Funcs  | Lines  |
+|--------------------|--------|--------|--------|--------|
+| AuthModal.tsx      | 87.0%  | 92.0%  | 71.4%  | 88.0%  |
+| CheckoutModal.tsx  | 76.7%  | 83.3%  | 61.5%  | 76.9%  |
+| AgentDetail.tsx    | 52.6%  | 39.4%  | 35.9%  | 57.0%  |
+
+---
+
 ## License
 
 MIT

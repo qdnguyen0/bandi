@@ -1,0 +1,24 @@
+# Dependencies
+frontend/node_modules/
+
+# Build output
+frontend/dist/
+
+# Database
+data/*.db
+data/*.db-journal
+data/*.db-wal
+
+# Vault (uploaded agent archives)
+data/vault/
+
+# Go binary
+bandiAI
+
+# Test/coverage artifacts
+coverage.out
+coverage.html
+*.cov
+
+# OS files
+.DS_Store
