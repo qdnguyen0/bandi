@@ -131,6 +131,20 @@ func (h *AgentHandler) Reviews(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *AgentHandler) CheckName(w http.ResponseWriter, r *http.Request) {
+	name := r.URL.Query().Get("name")
+	if name == "" {
+		jsonError(w, "name required", http.StatusBadRequest)
+		return
+	}
+	exists, err := h.db.AgentNameExists(name)
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	jsonResp(w, http.StatusOK, map[string]bool{"taken": exists})
+}
+
 func (h *AgentHandler) Create(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	role := middleware.GetUserRole(r.Context())

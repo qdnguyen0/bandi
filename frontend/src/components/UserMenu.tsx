@@ -63,6 +63,12 @@ export default function UserMenu() {
                 Profile
               </button>
               <button
+                className="w-full text-left px-4 py-2 text-xs font-mono text-white/60 hover:text-voltagePurple hover:bg-voltagePurple/5 transition-colors"
+                onClick={() => { navigate('/developer'); setOpen(false) }}
+              >
+                Developer
+              </button>
+              <button
                 className="w-full text-left px-4 py-2 text-xs font-mono text-white/60 hover:text-red-400 hover:bg-red-400/5 transition-colors"
                 onClick={() => { logout(); setOpen(false) }}
               >

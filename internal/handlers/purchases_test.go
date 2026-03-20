@@ -58,12 +58,15 @@ func seedTestDev(t *testing.T, db *storage.DB, username string) int64 {
 	return u.ID
 }
 
+var handlerAgentSeq int
+
 // seedTestAgent creates an agent and returns it.
 func seedTestAgent(t *testing.T, db *storage.DB, devID int64, hasTrial bool, rentalPrice *float64) *models.Agent {
 	t.Helper()
+	handlerAgentSeq++
 	a := &models.Agent{
 		DevID:       devID,
-		Name:        "TestAgent",
+		Name:        fmt.Sprintf("TestAgent_%d", handlerAgentSeq),
 		Description: "Test agent",
 		Version:     "1.0.0",
 		Price:       9.99,

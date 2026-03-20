@@ -6,6 +6,7 @@ import SearchPalette from './components/SearchPalette'
 import Marketplace from './pages/Marketplace'
 import AgentDetail from './pages/AgentDetail'
 import Profile from './pages/Profile'
+import Developer from './pages/Developer'
 import TopAgents from './pages/TopAgents'
 
 export default function App() {
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="/top-agents" element={<TopAgents />} />
           <Route path="/agents/:id" element={<AgentDetail />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/developer" element={<Developer />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

@@ -97,6 +97,24 @@ func (db *DB) GetUserByID(id int64) (*models.User, error) {
 	return u, nil
 }
 
+func (db *DB) UsernameExists(username string) (bool, error) {
+	var count int
+	err := db.conn.QueryRow("SELECT COUNT(*) FROM users WHERE username = ?", username).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("check username: %w", err)
+	}
+	return count > 0, nil
+}
+
+func (db *DB) EmailExists(email string) (bool, error) {
+	var count int
+	err := db.conn.QueryRow("SELECT COUNT(*) FROM users WHERE email = ?", email).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("check email: %w", err)
+	}
+	return count > 0, nil
+}
+
 // --- Agents ---
 
 func (db *DB) CreateAgent(a *models.Agent) (*models.Agent, error) {
@@ -206,6 +224,15 @@ func (db *DB) SuggestAgents(query string, limit int) ([]models.AgentSuggestion, 
 		suggestions = append(suggestions, s)
 	}
 	return suggestions, nil
+}
+
+func (db *DB) AgentNameExists(name string) (bool, error) {
+	var count int
+	err := db.conn.QueryRow("SELECT COUNT(*) FROM agents WHERE name = ?", name).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("check agent name: %w", err)
+	}
+	return count > 0, nil
 }
 
 func (db *DB) IncrementDownloads(id int64) error {

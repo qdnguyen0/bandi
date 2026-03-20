@@ -2,6 +2,7 @@ package storage
 
 import (
 	"database/sql"
+	"fmt"
 	"testing"
 	"time"
 
@@ -41,9 +42,10 @@ func seedDev(t *testing.T, db *DB, username string) int64 {
 
 func seedAgent(t *testing.T, db *DB, devID int64, hasTrial bool, rentalPrice *float64) int64 {
 	t.Helper()
+	agentSeq++
 	a := &models.Agent{
 		DevID:       devID,
-		Name:        "TestAgent",
+		Name:        fmt.Sprintf("TestAgent_%d", agentSeq),
 		Description: "A test agent",
 		Version:     "1.0.0",
 		Price:       9.99,
@@ -57,6 +59,8 @@ func seedAgent(t *testing.T, db *DB, devID int64, hasTrial bool, rentalPrice *fl
 	}
 	return created.ID
 }
+
+var agentSeq int
 
 // --- GetActivePurchase tests ---
 
@@ -473,9 +477,6 @@ func TestSuggestAgents_Matches(t *testing.T) {
 	if len(suggestions) != 1 {
 		t.Fatalf("expected 1 suggestion, got %d", len(suggestions))
 	}
-	if suggestions[0].Name != "TestAgent" {
-		t.Fatalf("expected name %q, got %q", "TestAgent", suggestions[0].Name)
-	}
 }
 
 func TestSuggestAgents_LimitDefaulting(t *testing.T) {
@@ -780,3 +781,183 @@ func TestSeedReviews_IdempotentWhenReviewsExist(t *testing.T) {
 		t.Fatalf("expected same count after second seed: first=%d, second=%d", countAfterFirst, countAfterSecond)
 	}
 }
+
+// --- Uniqueness constraint tests ---
+
+func TestCreateUser_DuplicateUsername(t *testing.T) {
+	db := newTestDB(t)
+	seedUser(t, db, "unique_alice")
+
+	_, err := db.CreateUser("unique_alice", "different@test.com", "hash", "F", "L", "user")
+	if err == nil {
+		t.Fatal("expected error when creating user with duplicate username")
+	}
+}
+
+func TestCreateUser_DuplicateEmail(t *testing.T) {
+	db := newTestDB(t)
+	seedUser(t, db, "dup_email_user")
+
+	_, err := db.CreateUser("other_user", "dup_email_user@test.com", "hash", "F", "L", "user")
+	if err == nil {
+		t.Fatal("expected error when creating user with duplicate email")
+	}
+}
+
+func TestCreateUser_SameUsernameAfterDifferent(t *testing.T) {
+	db := newTestDB(t)
+	seedUser(t, db, "first_user")
+	seedUser(t, db, "second_user")
+
+	_, err := db.CreateUser("first_user", "new@test.com", "hash", "F", "L", "user")
+	if err == nil {
+		t.Fatal("expected error for duplicate username even with other users in between")
+	}
+}
+
+func TestCreateAgent_DuplicateName(t *testing.T) {
+	db := newTestDB(t)
+	devID := seedDev(t, db, "dup_agent_dev")
+
+	_, err := db.CreateAgent(&models.Agent{
+		DevID: devID, Name: "UniqueBot", Version: "1.0.0", Price: 9.99, Category: "NLP",
+	})
+	if err != nil {
+		t.Fatalf("first create should succeed: %v", err)
+	}
+
+	_, err = db.CreateAgent(&models.Agent{
+		DevID: devID, Name: "UniqueBot", Version: "2.0.0", Price: 19.99, Category: "Vision",
+	})
+	if err == nil {
+		t.Fatal("expected error when creating agent with duplicate name")
+	}
+}
+
+func TestCreateAgent_DuplicateNameDifferentDev(t *testing.T) {
+	db := newTestDB(t)
+	dev1 := seedDev(t, db, "dup_name_dev1")
+	dev2 := seedDev(t, db, "dup_name_dev2")
+
+	_, err := db.CreateAgent(&models.Agent{
+		DevID: dev1, Name: "SharedName", Version: "1.0.0", Price: 9.99, Category: "NLP",
+	})
+	if err != nil {
+		t.Fatalf("first create should succeed: %v", err)
+	}
+
+	_, err = db.CreateAgent(&models.Agent{
+		DevID: dev2, Name: "SharedName", Version: "1.0.0", Price: 9.99, Category: "NLP",
+	})
+	if err == nil {
+		t.Fatal("expected error when different dev creates agent with same name")
+	}
+}
+
+func TestCreateAgent_DifferentNamesSucceed(t *testing.T) {
+	db := newTestDB(t)
+	devID := seedDev(t, db, "diff_name_dev")
+
+	_, err := db.CreateAgent(&models.Agent{
+		DevID: devID, Name: "AgentAlpha", Version: "1.0.0", Price: 9.99, Category: "NLP",
+	})
+	if err != nil {
+		t.Fatalf("first create should succeed: %v", err)
+	}
+
+	_, err = db.CreateAgent(&models.Agent{
+		DevID: devID, Name: "AgentBeta", Version: "1.0.0", Price: 9.99, Category: "NLP",
+	})
+	if err != nil {
+		t.Fatalf("second create with different name should succeed: %v", err)
+	}
+}
+
+// --- UsernameExists tests ---
+
+func TestUsernameExists_True(t *testing.T) {
+	db := newTestDB(t)
+	seedUser(t, db, "exists_user")
+
+	exists, err := db.UsernameExists("exists_user")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !exists {
+		t.Fatal("expected username to exist")
+	}
+}
+
+func TestUsernameExists_False(t *testing.T) {
+	db := newTestDB(t)
+
+	exists, err := db.UsernameExists("no_such_user")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if exists {
+		t.Fatal("expected username to not exist")
+	}
+}
+
+// --- EmailExists tests ---
+
+func TestEmailExists_True(t *testing.T) {
+	db := newTestDB(t)
+	seedUser(t, db, "email_exists")
+
+	exists, err := db.EmailExists("email_exists@test.com")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !exists {
+		t.Fatal("expected email to exist")
+	}
+}
+
+func TestEmailExists_False(t *testing.T) {
+	db := newTestDB(t)
+
+	exists, err := db.EmailExists("nobody@nowhere.com")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if exists {
+		t.Fatal("expected email to not exist")
+	}
+}
+
+// --- AgentNameExists tests ---
+
+func TestAgentNameExists_True(t *testing.T) {
+	db := newTestDB(t)
+	devID := seedDev(t, db, "ane_dev")
+
+	_, err := db.CreateAgent(&models.Agent{
+		DevID: devID, Name: "ExistsBot", Version: "1.0.0", Price: 9.99, Category: "NLP",
+	})
+	if err != nil {
+		t.Fatalf("CreateAgent: %v", err)
+	}
+
+	exists, err := db.AgentNameExists("ExistsBot")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !exists {
+		t.Fatal("expected agent name to exist")
+	}
+}
+
+func TestAgentNameExists_False(t *testing.T) {
+	db := newTestDB(t)
+
+	exists, err := db.AgentNameExists("NoSuchAgent")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if exists {
+		t.Fatal("expected agent name to not exist")
+	}
+}
+

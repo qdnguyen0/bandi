@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
+import { checkUsername, checkEmail } from '../api'
 
 interface Props {
   open: boolean
@@ -8,6 +9,14 @@ interface Props {
   initialTab?: 'login' | 'signup'
   centered?: boolean
   onSuccess?: () => void
+}
+
+function useDebounce(fn: (...args: string[]) => void, delay: number) {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  return useCallback((...args: string[]) => {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => fn(...args), delay)
+  }, [fn, delay])
 }
 
 export default function AuthModal({ open, onClose, initialTab = 'login', centered = false, onSuccess }: Props) {
@@ -20,7 +29,19 @@ export default function AuthModal({ open, onClose, initialTab = 'login', centere
   const [lastName, setLastName] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [usernameTaken, setUsernameTaken] = useState<boolean | null>(null)
+  const [emailTaken, setEmailTaken] = useState<boolean | null>(null)
   const ref = useRef<HTMLDivElement>(null)
+
+  const debouncedCheckUsername = useDebounce(useCallback((val: string) => {
+    if (val.length < 2) { setUsernameTaken(null); return }
+    checkUsername(val).then(setUsernameTaken).catch(() => setUsernameTaken(null))
+  }, []), 400)
+
+  const debouncedCheckEmail = useDebounce(useCallback((val: string) => {
+    if (!val.includes('@')) { setEmailTaken(null); return }
+    checkEmail(val).then(setEmailTaken).catch(() => setEmailTaken(null))
+  }, []), 400)
 
   useEffect(() => {
     setTab(initialTab)
@@ -45,12 +66,22 @@ export default function AuthModal({ open, onClose, initialTab = 'login', centere
       setFirstName('')
       setLastName('')
       setError('')
+      setUsernameTaken(null)
+      setEmailTaken(null)
     }
   }, [open])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    if (tab === 'signup' && usernameTaken) {
+      setError('Username is already taken')
+      return
+    }
+    if (tab === 'signup' && emailTaken) {
+      setError('Email is already registered')
+      return
+    }
     setSubmitting(true)
     try {
       if (tab === 'login') {
@@ -109,24 +140,56 @@ export default function AuthModal({ open, onClose, initialTab = 'login', centere
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="p-4 flex flex-col gap-3">
-        <input
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={e => setUsername(e.target.value)}
-          required
-          className="input-neon"
-        />
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Username"
+            value={username}
+            onChange={e => {
+              setUsername(e.target.value)
+              if (tab === 'signup') {
+                setUsernameTaken(null)
+                debouncedCheckUsername(e.target.value)
+              }
+            }}
+            required
+            className="input-neon w-full"
+            style={tab === 'signup' && usernameTaken === true ? { borderColor: '#ff4444' } : tab === 'signup' && usernameTaken === false && username.length >= 2 ? { borderColor: '#00ff88' } : {}}
+          />
+          {tab === 'signup' && username.length >= 2 && usernameTaken !== null && (
+            <span
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono font-bold tracking-wider"
+              style={{ color: usernameTaken ? '#ff4444' : '#00ff88' }}
+            >
+              {usernameTaken ? 'TAKEN' : 'AVAILABLE'}
+            </span>
+          )}
+        </div>
         {tab === 'signup' && (
           <>
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-              className="input-neon"
-            />
+            <div className="relative">
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={e => {
+                  setEmail(e.target.value)
+                  setEmailTaken(null)
+                  debouncedCheckEmail(e.target.value)
+                }}
+                required
+                className="input-neon w-full"
+                style={emailTaken === true ? { borderColor: '#ff4444' } : emailTaken === false && email.includes('@') ? { borderColor: '#00ff88' } : {}}
+              />
+              {email.includes('@') && emailTaken !== null && (
+                <span
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono font-bold tracking-wider"
+                  style={{ color: emailTaken ? '#ff4444' : '#00ff88' }}
+                >
+                  {emailTaken ? 'TAKEN' : 'AVAILABLE'}
+                </span>
+              )}
+            </div>
             <div className="flex gap-3">
               <input
                 type="text"
@@ -162,7 +225,11 @@ export default function AuthModal({ open, onClose, initialTab = 'login', centere
           </p>
         )}
 
-        <button type="submit" disabled={submitting} className="btn-neon text-sm py-2">
+        <button
+          type="submit"
+          disabled={submitting || (tab === 'signup' && usernameTaken === true) || (tab === 'signup' && emailTaken === true)}
+          className="btn-neon text-sm py-2"
+        >
           {submitting ? 'Please wait...' : tab === 'login' ? 'Login' : 'Create Account'}
         </button>
       </form>

@@ -50,8 +50,11 @@ func main() {
 	// Public routes
 	r.Post("/api/auth/register", authH.Register)
 	r.Post("/api/auth/login", authH.Login)
+	r.Get("/api/auth/check-username", authH.CheckUsername)
+	r.Get("/api/auth/check-email", authH.CheckEmail)
 	r.Get("/api/agents", agentH.List)
 	r.Get("/api/agents/suggest", agentH.Suggest)
+	r.Get("/api/agents/check-name", agentH.CheckName)
 	r.Get("/api/agents/{id}", agentH.Get)
 	r.Get("/api/agents/{id}/reviews", agentH.Reviews)
 	r.Post("/api/agents/{id}/summary", summaryH.Generate)

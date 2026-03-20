@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS agents (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     dev_id INTEGER NOT NULL REFERENCES users(id),
-    name TEXT NOT NULL,
+    name TEXT NOT NULL UNIQUE,
     description TEXT,
     version TEXT NOT NULL DEFAULT '1.0.0',
     price REAL NOT NULL DEFAULT 0.0,
@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS purchases (
 
 CREATE INDEX IF NOT EXISTS idx_agents_category ON agents(category);
 CREATE INDEX IF NOT EXISTS idx_agents_dev_id ON agents(dev_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_agents_name ON agents(name);
 CREATE INDEX IF NOT EXISTS idx_purchases_user_id ON purchases(user_id);
 
 -- FTS5 virtual table for fast full-text search on agents

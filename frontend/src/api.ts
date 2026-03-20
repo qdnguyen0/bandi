@@ -206,3 +206,18 @@ export async function fetchReviews(agentId: number, page = 1, limit = 10): Promi
   const qs = new URLSearchParams({ page: String(page), limit: String(limit) })
   return request<ReviewsResponse>(`/agents/${agentId}/reviews?${qs}`)
 }
+
+export async function checkUsername(username: string): Promise<boolean> {
+  const res = await request<{ taken: boolean }>(`/auth/check-username?username=${encodeURIComponent(username)}`)
+  return res.taken
+}
+
+export async function checkEmail(email: string): Promise<boolean> {
+  const res = await request<{ taken: boolean }>(`/auth/check-email?email=${encodeURIComponent(email)}`)
+  return res.taken
+}
+
+export async function checkAgentName(name: string): Promise<boolean> {
+  const res = await request<{ taken: boolean }>(`/agents/check-name?name=${encodeURIComponent(name)}`)
+  return res.taken
+}

@@ -121,6 +121,34 @@ func (h *AuthHandler) Profile(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *AuthHandler) CheckUsername(w http.ResponseWriter, r *http.Request) {
+	username := r.URL.Query().Get("username")
+	if username == "" {
+		jsonError(w, "username required", http.StatusBadRequest)
+		return
+	}
+	exists, err := h.db.UsernameExists(username)
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	jsonResp(w, http.StatusOK, map[string]bool{"taken": exists})
+}
+
+func (h *AuthHandler) CheckEmail(w http.ResponseWriter, r *http.Request) {
+	email := r.URL.Query().Get("email")
+	if email == "" {
+		jsonError(w, "email required", http.StatusBadRequest)
+		return
+	}
+	exists, err := h.db.EmailExists(email)
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	jsonResp(w, http.StatusOK, map[string]bool{"taken": exists})
+}
+
 func (h *AuthHandler) generateToken(user *models.User) (string, error) {
 	claims := jwt.MapClaims{
 		"sub":  user.ID,
