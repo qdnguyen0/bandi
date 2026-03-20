@@ -9,7 +9,6 @@ import (
 	"github.com/bandiAI/internal/models"
 	"github.com/bandiAI/internal/storage"
 	"github.com/golang-jwt/jwt/v5"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthHandler struct {
@@ -27,8 +26,8 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
-	if req.Email == "" || req.Password == "" {
-		jsonError(w, "email and password required", http.StatusBadRequest)
+	if req.Email == "" || req.Password == "" || req.Username == "" {
+		jsonError(w, "username, email and password required", http.StatusBadRequest)
 		return
 	}
 	if req.Role == "" {
@@ -39,15 +38,9 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	user, err := h.db.CreateUser(req.Username, req.Email, req.Password, req.FirstName, req.LastName, req.Role)
 	if err != nil {
-		jsonError(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-
-	user, err := h.db.CreateUser(req.Email, string(hash), req.Role)
-	if err != nil {
-		jsonError(w, "email already exists", http.StatusConflict)
+		jsonError(w, "username or email already exists", http.StatusConflict)
 		return
 	}
 
@@ -67,13 +60,13 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.db.GetUserByEmail(req.Email)
+	user, err := h.db.GetUserByUsername(req.Username)
 	if err != nil {
 		jsonError(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
+	if user.Password != req.Password {
 		jsonError(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
@@ -95,6 +88,37 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonResp(w, http.StatusOK, user)
+}
+
+type ProfileResponse struct {
+	User        models.User       `json:"user"`
+	Purchases   []models.Purchase `json:"purchases"`
+	FavoriteIDs []int64           `json:"favorite_ids"`
+}
+
+func (h *AuthHandler) Profile(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r.Context())
+	user, err := h.db.GetUserByID(userID)
+	if err != nil {
+		jsonError(w, "user not found", http.StatusNotFound)
+		return
+	}
+
+	purchases, err := h.db.GetUserPurchases(userID)
+	if err != nil {
+		purchases = []models.Purchase{}
+	}
+
+	favorites, err := h.db.GetUserFavorites(userID)
+	if err != nil {
+		favorites = []int64{}
+	}
+
+	jsonResp(w, http.StatusOK, ProfileResponse{
+		User:        *user,
+		Purchases:   purchases,
+		FavoriteIDs: favorites,
+	})
 }
 
 func (h *AuthHandler) generateToken(user *models.User) (string, error) {

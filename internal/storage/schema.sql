@@ -1,7 +1,10 @@
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
     email TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
+    password TEXT NOT NULL,
+    first_name TEXT NOT NULL DEFAULT '',
+    last_name TEXT NOT NULL DEFAULT '',
     stripe_id TEXT,
     role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('dev', 'user')),
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -47,6 +50,15 @@ CREATE TABLE IF NOT EXISTS reviews (
 );
 
 CREATE INDEX IF NOT EXISTS idx_reviews_agent_id ON reviews(agent_id);
+
+CREATE TABLE IF NOT EXISTS user_favorites (
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    agent_id INTEGER NOT NULL REFERENCES agents(id),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, agent_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_favorites_user_id ON user_favorites(user_id);
 
 -- FTS5 virtual table for fast full-text search on agents
 CREATE VIRTUAL TABLE IF NOT EXISTS agents_fts USING fts5(

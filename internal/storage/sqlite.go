@@ -42,28 +42,43 @@ func (db *DB) Close() error {
 
 // --- Users ---
 
-func (db *DB) CreateUser(email, passwordHash, role string) (*models.User, error) {
+func (db *DB) CreateUser(username, email, password, firstName, lastName, role string) (*models.User, error) {
 	res, err := db.conn.Exec(
-		"INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?)",
-		email, passwordHash, role,
+		"INSERT INTO users (username, email, password, first_name, last_name, role) VALUES (?, ?, ?, ?, ?, ?)",
+		username, email, password, firstName, lastName, role,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create user: %w", err)
 	}
 	id, _ := res.LastInsertId()
 	return &models.User{
-		ID:    id,
-		Email: email,
-		Role:  role,
+		ID:        id,
+		Username:  username,
+		Email:     email,
+		FirstName: firstName,
+		LastName:  lastName,
+		Role:      role,
 	}, nil
+}
+
+func (db *DB) GetUserByUsername(username string) (*models.User, error) {
+	u := &models.User{}
+	err := db.conn.QueryRow(
+		"SELECT id, username, email, password, first_name, last_name, COALESCE(stripe_id,''), role, created_at FROM users WHERE username = ?",
+		username,
+	).Scan(&u.ID, &u.Username, &u.Email, &u.Password, &u.FirstName, &u.LastName, &u.StripeID, &u.Role, &u.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return u, nil
 }
 
 func (db *DB) GetUserByEmail(email string) (*models.User, error) {
 	u := &models.User{}
 	err := db.conn.QueryRow(
-		"SELECT id, email, password_hash, COALESCE(stripe_id,''), role, created_at FROM users WHERE email = ?",
+		"SELECT id, username, email, password, first_name, last_name, COALESCE(stripe_id,''), role, created_at FROM users WHERE email = ?",
 		email,
-	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.StripeID, &u.Role, &u.CreatedAt)
+	).Scan(&u.ID, &u.Username, &u.Email, &u.Password, &u.FirstName, &u.LastName, &u.StripeID, &u.Role, &u.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -73,9 +88,9 @@ func (db *DB) GetUserByEmail(email string) (*models.User, error) {
 func (db *DB) GetUserByID(id int64) (*models.User, error) {
 	u := &models.User{}
 	err := db.conn.QueryRow(
-		"SELECT id, email, password_hash, COALESCE(stripe_id,''), role, created_at FROM users WHERE id = ?",
+		"SELECT id, username, email, password, first_name, last_name, COALESCE(stripe_id,''), role, created_at FROM users WHERE id = ?",
 		id,
-	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.StripeID, &u.Role, &u.CreatedAt)
+	).Scan(&u.ID, &u.Username, &u.Email, &u.Password, &u.FirstName, &u.LastName, &u.StripeID, &u.Role, &u.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -242,6 +257,24 @@ func (db *DB) GetUserPurchases(userID int64) ([]models.Purchase, error) {
 		purchases = append(purchases, p)
 	}
 	return purchases, nil
+}
+
+func (db *DB) GetUserFavorites(userID int64) ([]int64, error) {
+	rows, err := db.conn.Query("SELECT agent_id FROM user_favorites WHERE user_id = ?", userID)
+	if err != nil {
+		return nil, fmt.Errorf("get user favorites: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan favorite: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
 }
 
 func (db *DB) UpdateUserStripeID(userID int64, stripeID string) error {

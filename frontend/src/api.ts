@@ -1,4 +1,4 @@
-import type { Agent, AuthResponse } from './types'
+import type { Agent, AuthResponse, User } from './types'
 
 const BASE = '/api'
 
@@ -89,22 +89,36 @@ function mapAgent(a: ApiAgent): Agent {
   } as Agent
 }
 
-export async function login(email: string, password: string): Promise<AuthResponse> {
+export async function login(username: string, password: string): Promise<AuthResponse> {
   const data = await request<AuthResponse>('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ username, password }),
   })
   localStorage.setItem('token', data.token)
   return data
 }
 
-export async function register(username: string, email: string, password: string): Promise<AuthResponse> {
+export async function register(username: string, email: string, password: string, firstName: string, lastName: string): Promise<AuthResponse> {
   const data = await request<AuthResponse>('/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ username, email, password }),
+    body: JSON.stringify({ username, email, password, first_name: firstName, last_name: lastName }),
   })
   localStorage.setItem('token', data.token)
   return data
+}
+
+export async function fetchMe(): Promise<User> {
+  return request<User>('/auth/me')
+}
+
+export interface ProfileResponse {
+  user: User
+  purchases: { id: number; user_id: number; agent_id: number; type: string; expiry_date?: string; created_at: string }[]
+  favorite_ids: number[]
+}
+
+export async function fetchProfile(): Promise<ProfileResponse> {
+  return request<ProfileResponse>('/auth/profile')
 }
 
 export async function purchaseAgent(

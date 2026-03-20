@@ -60,6 +60,7 @@ func main() {
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Auth(cfg.JWTSecret))
 		r.Get("/api/auth/me", authH.Me)
+		r.Get("/api/auth/profile", authH.Profile)
 		r.Post("/api/agents", agentH.Create)
 		r.Get("/api/agents/{id}/download", agentH.Download)
 		r.Post("/api/purchases", purchaseH.Create)

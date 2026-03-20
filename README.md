@@ -31,7 +31,7 @@ BandiAI is a full-stack marketplace where developers publish AI agents and users
 │                                                             │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
 │  │  Auth        │  │  Agents      │  │  Purchases       │  │
-│  │  (JWT/bcrypt)│  │  (upload/    │  │  (buy / rent)    │  │
+│  │  (JWT)      │  │  (upload/    │  │  (buy / rent)    │  │
 │  └──────────────┘  │  download)   │  └──────────────────┘  │
 │                    └──────────────┘                         │
 │  ┌──────────────────────────────────────────────────────┐   │
@@ -58,7 +58,7 @@ BandiAI is a full-stack marketplace where developers publish AI agents and users
 
 | Layer     | Technology                                          |
 |-----------|-----------------------------------------------------|
-| Backend   | Go 1.22, `chi` v5, `golang-jwt/jwt` v5, `bcrypt`   |
+| Backend   | Go 1.22, `chi` v5, `golang-jwt/jwt` v5              |
 | Database  | SQLite via `modernc.org/sqlite` (no CGO required)   |
 | Payments  | Stripe Go SDK v76                                   |
 | Frontend  | React 18, TypeScript, Vite 5, Tailwind CSS 3        |
@@ -135,12 +135,23 @@ go mod tidy
 # Frontend dependencies
 cd frontend && npm install
 
-# Seed demo data (first time only)
+# Create the data directory
 mkdir -p data/vault
-go run ./cmd/server/ &  # start briefly to create DB
+
+# Option A: Let the Go server create the DB schema, then seed
+go run ./cmd/server/ &  # starts server, runs Migrate() to create tables
 sleep 2 && kill %1
-sqlite3 ./data/bandiAI.db "PRAGMA trusted_schema=ON;" ".read seed.sql"
+sqlite3 ./data/bandiAI.db -cmd "PRAGMA trusted_schema=ON;" < seed.sql
+
+# Option B: Create DB from schema.sql directly, then seed
+sqlite3 ./data/bandiAI.db < schema.sql
+sqlite3 ./data/bandiAI.db -cmd "PRAGMA trusted_schema=ON;" < seed.sql
 ```
+
+> **Note:** The `PRAGMA trusted_schema=ON` is required because `sqlite3` blocks
+> virtual table triggers (FTS5) in safe mode when reading from stdin/files.
+> Without it you'll get: `Parse error: unsafe use of virtual table "agents_fts"`.
+> On SQLite 3.46+ you can use `sqlite3 -unsafe` instead.
 
 ### Running
 

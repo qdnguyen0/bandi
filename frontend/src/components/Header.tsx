@@ -1,8 +1,16 @@
 import { Link, NavLink } from 'react-router-dom'
 import { useState } from 'react'
+import { useAuth } from '../context/AuthContext'
+import AuthModal from './AuthModal'
+import UserMenu from './UserMenu'
 
 export default function Header({ onSearchOpen }: { onSearchOpen: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const { user } = useAuth()
+  const [authModal, setAuthModal] = useState<{ open: boolean; tab: 'login' | 'signup' }>({ open: false, tab: 'login' })
+
+  const openAuth = (tab: 'login' | 'signup') => setAuthModal({ open: true, tab })
+  const closeAuth = () => setAuthModal(prev => ({ ...prev, open: false }))
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 glass-dark border-b border-neonCyan/10">
@@ -14,7 +22,6 @@ export default function Header({ onSearchOpen }: { onSearchOpen: () => void }) {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-4 group">
             <div className="relative">
-              {/* Glitch logo */}
               <span
                 className="glitch text-2xl font-black tracking-tighter text-neonCyan"
                 data-text="BandiAI"
@@ -84,10 +91,20 @@ export default function Header({ onSearchOpen }: { onSearchOpen: () => void }) {
               </kbd>
             </button>
 
-            {/* Auth buttons */}
-            <button className="btn-neon text-xs py-1.5 px-4">
-              Connect
-            </button>
+            {/* Auth */}
+            {user ? (
+              <UserMenu />
+            ) : (
+              <div className="relative">
+                <button
+                  onClick={() => authModal.open ? closeAuth() : openAuth('login')}
+                  className="btn-neon text-xs py-1.5 px-4"
+                >
+                  Connect
+                </button>
+                <AuthModal open={authModal.open} onClose={closeAuth} initialTab={authModal.tab} />
+              </div>
+            )}
 
             {/* Mobile menu toggle */}
             <button
@@ -123,6 +140,14 @@ export default function Header({ onSearchOpen }: { onSearchOpen: () => void }) {
             >
               Search
             </button>
+            {!user && (
+              <button
+                onClick={() => { openAuth('login'); setMenuOpen(false) }}
+                className="text-left text-sm tracking-wider uppercase font-mono text-white/60 hover:text-neonCyan transition-colors"
+              >
+                Connect
+              </button>
+            )}
           </nav>
         </div>
       )}

@@ -1,12 +1,16 @@
 -- Seed data for BandiAI demo
 -- Run: sqlite3 ./data/bandiAI.db < seed.sql
 
--- Developer accounts (password: "demo123" bcrypt hash)
-INSERT OR IGNORE INTO users (id, email, password_hash, role) VALUES
-  (1, 'dev@synthlabs.ai', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'dev'),
-  (2, 'dev@pixelmind.io', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'dev'),
-  (3, 'dev@flowstate.dev', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'dev'),
-  (4, 'dev@redshield.sec', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'dev');
+-- Developer accounts (plaintext password: "demo123")
+INSERT OR IGNORE INTO users (id, username, email, password, first_name, last_name, role) VALUES
+  (1, 'synthlabs', 'dev@synthlabs.ai', 'demo123', 'Synth', 'Labs', 'dev'),
+  (2, 'pixelmind', 'dev@pixelmind.io', 'demo123', 'Pixel', 'Mind', 'dev'),
+  (3, 'flowstate', 'dev@flowstate.dev', 'demo123', 'Flow', 'State', 'dev'),
+  (4, 'redshield', 'dev@redshield.sec', 'demo123', 'Red', 'Shield', 'dev');
+
+-- User profile: Quan Nguyen (plaintext password: "pass123")
+INSERT OR IGNORE INTO users (id, username, email, password, first_name, last_name, role) VALUES
+  (5, 'qnguyen', 'quannguyenca15@icloud.com', 'pass123', 'Quan', 'Nguyen', 'user');
 
 -- Agents
 INSERT OR IGNORE INTO agents (id, dev_id, name, description, version, price, rental_price, has_trial, category, downloads) VALUES
@@ -20,3 +24,15 @@ INSERT OR IGNORE INTO agents (id, dev_id, name, description, version, price, ren
   (8, 2, 'PixelForge Studio', 'AI-powered image generation and editing agent. Supports inpainting, outpainting, style transfer, upscaling, and batch processing. Runs locally with GPU acceleration or via cloud inference endpoints.', '2.3.0', 59.0, 11.0, 1, 'Vision', 15230),
   (9, 3, 'PipelinePilot', 'CI/CD automation agent that generates, optimizes, and monitors deployment pipelines. Supports GitHub Actions, GitLab CI, Jenkins, and ArgoCD. Auto-detects project type and suggests optimal pipeline configurations.', '1.5.0', 45.0, 8.0, 1, 'Automation', 9876),
   (10, 1, 'InsightEngine', 'Natural language BI agent that turns plain English questions into SQL queries, charts, and executive summaries. Connects to PostgreSQL, MySQL, BigQuery, and Snowflake with automatic schema discovery.', '1.0.0', 119.0, 21.0, 1, 'Analytics', 4320);
+
+-- Purchases for qnguyen (user 5)
+INSERT OR IGNORE INTO purchases (user_id, agent_id, type) VALUES
+  (5, 1, 'buy'),
+  (5, 3, 'rent');
+
+-- Favorites for qnguyen (user 5)
+INSERT OR IGNORE INTO user_favorites (user_id, agent_id) VALUES
+  (5, 2),
+  (5, 5),
+  (5, 8),
+  (5, 10);
