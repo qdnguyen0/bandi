@@ -55,9 +55,6 @@ func main() {
 	r.Get("/api/agents", agentH.List)
 	r.Get("/api/agents/suggest", agentH.Suggest)
 	r.Get("/api/agents/check-name", agentH.CheckName)
-	r.Get("/api/agents/{id}", agentH.Get)
-	r.Get("/api/agents/{id}/reviews", agentH.Reviews)
-	r.Post("/api/agents/{id}/summary", summaryH.Generate)
 	r.Post("/api/webhooks/stripe", stripeH.HandleWebhook)
 
 	// Protected routes
@@ -66,6 +63,7 @@ func main() {
 		r.Get("/api/auth/me", authH.Me)
 		r.Get("/api/auth/profile", authH.Profile)
 		r.Post("/api/agents", agentH.Create)
+		r.Get("/api/agents/my", agentH.ListByDev)
 		r.Get("/api/agents/{id}/download", agentH.Download)
 		r.Post("/api/purchases", purchaseH.Create)
 		r.Get("/api/purchases", purchaseH.List)
@@ -73,10 +71,27 @@ func main() {
 		r.Post("/api/checkout", purchaseH.Checkout)
 	})
 
-	// Serve frontend static files
-	if _, err := os.Stat("./frontend/dist"); err == nil {
-		fs := http.FileServer(http.Dir("./frontend/dist"))
-		r.Handle("/*", fs)
+	// Public agent routes with {id} param (must come after /api/agents/my to avoid shadowing)
+	r.Get("/api/agents/{id}", agentH.Get)
+	r.Get("/api/agents/{id}/reviews", agentH.Reviews)
+	r.Post("/api/agents/{id}/summary", summaryH.Generate)
+
+	// Serve frontend static files with SPA fallback
+	distDir := "./frontend/dist"
+	if _, err := os.Stat(distDir); err == nil {
+		fs := http.Dir(distDir)
+		fileServer := http.FileServer(fs)
+		r.HandleFunc("/*", func(w http.ResponseWriter, req *http.Request) {
+			// Try to serve the actual file first
+			path := req.URL.Path
+			if f, err := fs.Open(path); err == nil {
+				f.Close()
+				fileServer.ServeHTTP(w, req)
+				return
+			}
+			// SPA fallback: serve index.html for client-side routes
+			http.ServeFile(w, req, distDir+"/index.html")
+		})
 	}
 
 	addr := ":" + cfg.Port

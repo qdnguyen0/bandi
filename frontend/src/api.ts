@@ -221,3 +221,8 @@ export async function checkAgentName(name: string): Promise<boolean> {
   const res = await request<{ taken: boolean }>(`/agents/check-name?name=${encodeURIComponent(name)}`)
   return res.taken
 }
+
+export async function fetchMyAgents(): Promise<Agent[]> {
+  const res = await request<{ agents: ApiAgent[]; total: number }>('/agents/my')
+  return (res.agents ?? []).map(mapAgent)
+}

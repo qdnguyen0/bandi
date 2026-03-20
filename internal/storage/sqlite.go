@@ -226,6 +226,31 @@ func (db *DB) SuggestAgents(query string, limit int) ([]models.AgentSuggestion, 
 	return suggestions, nil
 }
 
+func (db *DB) ListAgentsByDev(devID int64) ([]models.Agent, error) {
+	rows, err := db.conn.Query(
+		"SELECT id, dev_id, name, COALESCE(description,''), version, price, rental_price, has_trial, COALESCE(category,''), downloads, created_at FROM agents WHERE dev_id = ? ORDER BY downloads DESC",
+		devID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list agents by dev: %w", err)
+	}
+	defer rows.Close()
+
+	var agents []models.Agent
+	for rows.Next() {
+		var a models.Agent
+		var rentalPrice sql.NullFloat64
+		if err := rows.Scan(&a.ID, &a.DevID, &a.Name, &a.Description, &a.Version, &a.Price, &rentalPrice, &a.HasTrial, &a.Category, &a.Downloads, &a.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan agent: %w", err)
+		}
+		if rentalPrice.Valid {
+			a.RentalPrice = &rentalPrice.Float64
+		}
+		agents = append(agents, a)
+	}
+	return agents, nil
+}
+
 func (db *DB) AgentNameExists(name string) (bool, error) {
 	var count int
 	err := db.conn.QueryRow("SELECT COUNT(*) FROM agents WHERE name = ?", name).Scan(&count)

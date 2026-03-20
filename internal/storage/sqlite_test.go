@@ -961,3 +961,127 @@ func TestAgentNameExists_False(t *testing.T) {
 	}
 }
 
+// --- ListAgentsByDev tests ---
+
+func TestListAgentsByDev_Empty(t *testing.T) {
+	db := newTestDB(t)
+	devID := seedDev(t, db, "lbd_empty_dev")
+
+	agents, err := db.ListAgentsByDev(devID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(agents) != 0 {
+		t.Fatalf("expected 0 agents, got %d", len(agents))
+	}
+}
+
+func TestListAgentsByDev_ReturnsOnlyOwnAgents(t *testing.T) {
+	db := newTestDB(t)
+	dev1 := seedDev(t, db, "lbd_dev1")
+	dev2 := seedDev(t, db, "lbd_dev2")
+
+	// Create 2 agents for dev1, 1 for dev2
+	seedAgent(t, db, dev1, false, nil)
+	seedAgent(t, db, dev1, false, nil)
+	seedAgent(t, db, dev2, false, nil)
+
+	agents, err := db.ListAgentsByDev(dev1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(agents) != 2 {
+		t.Fatalf("expected 2 agents for dev1, got %d", len(agents))
+	}
+	for _, a := range agents {
+		if a.DevID != dev1 {
+			t.Fatalf("expected dev_id %d, got %d", dev1, a.DevID)
+		}
+	}
+
+	agents2, err := db.ListAgentsByDev(dev2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(agents2) != 1 {
+		t.Fatalf("expected 1 agent for dev2, got %d", len(agents2))
+	}
+}
+
+func TestListAgentsByDev_OrderedByDownloadsDesc(t *testing.T) {
+	db := newTestDB(t)
+	devID := seedDev(t, db, "lbd_order_dev")
+
+	// Create agents and manually set different download counts
+	a1, err := db.CreateAgent(&models.Agent{
+		DevID: devID, Name: "LowDownloads", Version: "1.0.0", Price: 9.99, Category: "NLP",
+	})
+	if err != nil {
+		t.Fatalf("CreateAgent: %v", err)
+	}
+	a2, err := db.CreateAgent(&models.Agent{
+		DevID: devID, Name: "HighDownloads", Version: "1.0.0", Price: 9.99, Category: "NLP",
+	})
+	if err != nil {
+		t.Fatalf("CreateAgent: %v", err)
+	}
+
+	// Increment downloads: a2 gets 5, a1 gets 2
+	for i := 0; i < 5; i++ {
+		db.IncrementDownloads(a2.ID)
+	}
+	for i := 0; i < 2; i++ {
+		db.IncrementDownloads(a1.ID)
+	}
+
+	agents, err := db.ListAgentsByDev(devID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(agents) != 2 {
+		t.Fatalf("expected 2 agents, got %d", len(agents))
+	}
+	if agents[0].Downloads < agents[1].Downloads {
+		t.Fatalf("expected descending download order: first=%d, second=%d", agents[0].Downloads, agents[1].Downloads)
+	}
+	if agents[0].Name != "HighDownloads" {
+		t.Fatalf("expected first agent to be HighDownloads, got %q", agents[0].Name)
+	}
+}
+
+func TestListAgentsByDev_NonExistentDev(t *testing.T) {
+	db := newTestDB(t)
+
+	agents, err := db.ListAgentsByDev(99999)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(agents) != 0 {
+		t.Fatalf("expected 0 agents for non-existent dev, got %d", len(agents))
+	}
+}
+
+func TestListAgentsByDev_IncludesRentalPrice(t *testing.T) {
+	db := newTestDB(t)
+	devID := seedDev(t, db, "lbd_rental_dev")
+	rental := 4.99
+	seedAgent(t, db, devID, true, &rental)
+
+	agents, err := db.ListAgentsByDev(devID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(agents) != 1 {
+		t.Fatalf("expected 1 agent, got %d", len(agents))
+	}
+	if agents[0].RentalPrice == nil {
+		t.Fatal("expected non-nil RentalPrice")
+	}
+	if *agents[0].RentalPrice != rental {
+		t.Fatalf("expected RentalPrice %f, got %f", rental, *agents[0].RentalPrice)
+	}
+	if !agents[0].HasTrial {
+		t.Fatal("expected HasTrial true")
+	}
+}
+

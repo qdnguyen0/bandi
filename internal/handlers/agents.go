@@ -131,6 +131,29 @@ func (h *AgentHandler) Reviews(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *AgentHandler) ListByDev(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r.Context())
+	agents, err := h.db.ListAgentsByDev(userID)
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	for i := range agents {
+		rating, count, _ := h.db.GetAgentRating(agents[i].ID)
+		agents[i].Rating = rating
+		agents[i].ReviewCount = count
+	}
+	if agents == nil {
+		agents = []models.Agent{}
+	}
+	jsonResp(w, http.StatusOK, models.AgentListResponse{
+		Agents: agents,
+		Total:  len(agents),
+		Page:   1,
+		Limit:  len(agents),
+	})
+}
+
 func (h *AgentHandler) CheckName(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("name")
 	if name == "" {
