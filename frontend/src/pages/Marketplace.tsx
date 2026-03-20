@@ -4,7 +4,8 @@ import AgentCard from '../components/AgentCard'
 import type { Agent } from '../types'
 import { fetchAgents } from '../api'
 
-const CATEGORIES = ['All', 'NLP', 'Vision', 'Automation', 'Analytics', 'Security']
+const CATEGORIES = ['All', 'NLP', 'Vision', 'Automation', 'Analytics', 'Security', 'DevOps', 'Data']
+const PAGE_SIZE = 15
 
 // Mock data for when the API is unavailable (dev/demo)
 export const MOCK_AGENTS: Agent[] = [
@@ -259,6 +260,10 @@ export default function Marketplace({ searchQuery }: { searchQuery: string }) {
   const [agents, setAgents] = useState<Agent[]>([])
   const [category, setCategory] = useState('All')
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -266,8 +271,11 @@ export default function Marketplace({ searchQuery }: { searchQuery: string }) {
       const data = await fetchAgents({
         category: category === 'All' ? undefined : category,
         search: searchQuery || undefined,
+        page,
+        limit: PAGE_SIZE,
       })
-      setAgents(data)
+      setAgents(data.agents)
+      setTotal(data.total)
     } catch {
       // Use mock data when API unavailable
       const filtered = MOCK_AGENTS.filter(a => {
@@ -276,13 +284,17 @@ export default function Marketplace({ searchQuery }: { searchQuery: string }) {
           a.description.toLowerCase().includes(searchQuery.toLowerCase())
         return matchCat && matchSearch
       })
-      setAgents(filtered)
+      setTotal(filtered.length)
+      setAgents(filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE))
     } finally {
       setLoading(false)
     }
-  }, [category, searchQuery])
+  }, [category, searchQuery, page])
 
   useEffect(() => { void load() }, [load])
+
+  // Reset to page 1 when category or search changes
+  useEffect(() => { setPage(1) }, [category, searchQuery])
 
   return (
     <main className="cyber-grid-bg min-h-screen pt-16">
@@ -380,11 +392,11 @@ export default function Marketplace({ searchQuery }: { searchQuery: string }) {
             {loading ? (
               <span className="animate-pulse">LOADING...</span>
             ) : (
-              `${agents.length} AGENT${agents.length !== 1 ? 'S' : ''} FOUND`
+              `${total} AGENT${total !== 1 ? 'S' : ''} FOUND`
             )}
           </span>
           <div className="h-px flex-1 mx-4" style={{ background: 'linear-gradient(to right, transparent, rgba(0,255,255,0.1), transparent)' }} />
-          <span className="text-xs font-mono text-neonCyan/30 tracking-wider">SORTED BY POPULAR</span>
+          <span className="text-xs font-mono text-neonCyan/30 tracking-wider">SORTED BY POPULARITY</span>
         </div>
 
         {loading ? (
@@ -418,7 +430,86 @@ export default function Marketplace({ searchQuery }: { searchQuery: string }) {
             </p>
           </div>
         )}
+
+        {/* Pagination */}
+        {!loading && totalPages > 1 && (
+          <MarketplacePagination page={page} totalPages={totalPages} onPageChange={setPage} />
+        )}
       </section>
     </main>
+  )
+}
+
+function MarketplacePagination({
+  page,
+  totalPages,
+  onPageChange,
+}: {
+  page: number
+  totalPages: number
+  onPageChange: (page: number) => void
+}) {
+  const pages: (number | 'ellipsis')[] = []
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || (i >= page - 1 && i <= page + 1)) {
+      pages.push(i)
+    } else if (pages[pages.length - 1] !== 'ellipsis') {
+      pages.push('ellipsis')
+    }
+  }
+
+  const handleClick = (p: number) => {
+    onPageChange(p)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  return (
+    <div className="flex items-center justify-center gap-1 mt-10">
+      <button
+        onClick={() => handleClick(page - 1)}
+        disabled={page <= 1}
+        className="px-3 py-2 text-xs font-mono tracking-wider transition-colors cursor-pointer disabled:opacity-20 disabled:cursor-default"
+        style={{ color: 'rgba(0,255,255,0.6)' }}
+      >
+        &laquo; PREV
+      </button>
+
+      {pages.map((p, idx) =>
+        p === 'ellipsis' ? (
+          <span key={`e-${idx}`} className="px-2 text-xs font-mono text-white/20">...</span>
+        ) : (
+          <button
+            key={p}
+            onClick={() => handleClick(p)}
+            className="w-9 h-9 rounded text-xs font-mono font-bold transition-all duration-150 cursor-pointer"
+            style={
+              p === page
+                ? {
+                    color: '#00ffff',
+                    background: 'rgba(0,255,255,0.15)',
+                    border: '1px solid rgba(0,255,255,0.4)',
+                    boxShadow: '0 0 8px rgba(0,255,255,0.2)',
+                  }
+                : {
+                    color: 'rgba(255,255,255,0.4)',
+                    background: 'transparent',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                  }
+            }
+          >
+            {p}
+          </button>
+        )
+      )}
+
+      <button
+        onClick={() => handleClick(page + 1)}
+        disabled={page >= totalPages}
+        className="px-3 py-2 text-xs font-mono tracking-wider transition-colors cursor-pointer disabled:opacity-20 disabled:cursor-default"
+        style={{ color: 'rgba(0,255,255,0.6)' }}
+      >
+        NEXT &raquo;
+      </button>
+    </div>
   )
 }

@@ -45,8 +45,17 @@ export default function TopAgents() {
   const [sortKey, setSortKey] = useState<SortKey>('downloads')
 
   useEffect(() => {
-    fetchAgents({ limit: 50 })
-      .then(setAgents)
+    fetchAgents({ limit: 50, page: 1 })
+      .then(async (res) => {
+        let all = res.agents
+        // Fetch remaining pages to get all agents for ranking
+        const totalPages = Math.ceil(res.total / res.limit)
+        for (let p = 2; p <= totalPages; p++) {
+          const next = await fetchAgents({ limit: 50, page: p })
+          all = all.concat(next.agents)
+        }
+        setAgents(all)
+      })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])

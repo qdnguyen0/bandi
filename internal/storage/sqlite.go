@@ -353,15 +353,10 @@ func (db *DB) GetAgentRating(agentID int64) (float64, int, error) {
 
 // SeedReviews populates reviews for agents that have none.
 func (db *DB) SeedReviews() error {
-	var count int
-	if err := db.conn.QueryRow("SELECT COUNT(*) FROM reviews").Scan(&count); err != nil {
-		return fmt.Errorf("count reviews: %w", err)
-	}
-	if count > 0 {
-		return nil
-	}
-
-	rows, err := db.conn.Query("SELECT id, name, category, downloads FROM agents ORDER BY id")
+	rows, err := db.conn.Query(
+		`SELECT a.id, a.name, a.category, a.downloads FROM agents a
+		 WHERE NOT EXISTS (SELECT 1 FROM reviews r WHERE r.agent_id = a.id)
+		 ORDER BY a.id`)
 	if err != nil {
 		return fmt.Errorf("list agents for seed: %w", err)
 	}
@@ -574,6 +569,30 @@ func (db *DB) SeedReviews() error {
 			"Runtime protection mode caught a SQL injection in production. Saved us.",
 			"Cloud misconfiguration detection across AWS, GCP, and Azure.",
 			"The security training recommendations for developers are spot on.",
+		},
+		"DevOps": {
+			"Deployment frequency doubled within the first week. Absolute game changer.",
+			"Terraform drift detection caught misconfigs before they hit production.",
+			"Container orchestration is seamless. Kubernetes never felt this easy.",
+			"The GitOps workflow integration saved our team hours of manual work.",
+			"Monitoring dashboards auto-generated from infra code. Brilliant.",
+			"Incident response playbooks are context-aware and actionable.",
+			"Multi-cloud provisioning works flawlessly across AWS, GCP, and Azure.",
+			"Rolling deployments with automatic canary analysis. Chef's kiss.",
+			"Config management across 200+ servers is now fully automated.",
+			"The cost optimization recommendations paid for the agent in a day.",
+		},
+		"Data": {
+			"ETL pipeline generation from natural language descriptions. Mind blown.",
+			"Schema evolution handling across Postgres and BigQuery is seamless.",
+			"Data lineage tracking caught a broken upstream dependency instantly.",
+			"CDC streaming from MySQL to Kafka configured in under 5 minutes.",
+			"Data quality checks run automatically on every pipeline execution.",
+			"Partitioning strategy recommendations improved query speed by 10x.",
+			"The data catalog auto-discovery mapped our entire warehouse perfectly.",
+			"Incremental ingestion reduced our daily job runtime from 4h to 20min.",
+			"Cross-database joins without data movement. Didn't think it was possible.",
+			"Metadata management is comprehensive and actually useful for once.",
 		},
 	}
 

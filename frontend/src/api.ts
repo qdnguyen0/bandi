@@ -18,20 +18,32 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
+export interface AgentListResult {
+  agents: Agent[]
+  total: number
+  page: number
+  limit: number
+}
+
 export async function fetchAgents(params?: {
   category?: string
   search?: string
   page?: number
   limit?: number
-}): Promise<Agent[]> {
+}): Promise<AgentListResult> {
   const qs = new URLSearchParams()
   if (params?.category) qs.set('category', params.category)
   if (params?.search) qs.set('search', params.search)
   if (params?.page) qs.set('page', String(params.page))
   if (params?.limit) qs.set('limit', String(params.limit))
   const query = qs.toString() ? `?${qs}` : ''
-  const res = await request<{ agents: ApiAgent[] | null }>(`/agents${query}`)
-  return (res.agents ?? []).map(mapAgent)
+  const res = await request<{ agents: ApiAgent[] | null; total: number; page: number; limit: number }>(`/agents${query}`)
+  return {
+    agents: (res.agents ?? []).map(mapAgent),
+    total: res.total ?? 0,
+    page: res.page ?? 1,
+    limit: res.limit ?? 20,
+  }
 }
 
 export async function fetchAgent(id: number): Promise<Agent> {
@@ -63,6 +75,8 @@ const CATEGORY_AVATAR_COLORS: Record<string, string> = {
   automation: 'ff00ff',
   analytics: '00ff88',
   security: 'ff4444',
+  devops: 'ff8800',
+  data: '00ccff',
 }
 
 function agentAvatar(name: string, category: string): string {
