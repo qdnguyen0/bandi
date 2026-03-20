@@ -6,6 +6,7 @@ import SearchPalette from './components/SearchPalette'
 import Marketplace from './pages/Marketplace'
 import AgentDetail from './pages/AgentDetail'
 import Profile from './pages/Profile'
+import TopAgents from './pages/TopAgents'
 
 export default function App() {
   const [searchOpen, setSearchOpen] = useState(false)
@@ -29,7 +30,7 @@ export default function App() {
         <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
         <Routes>
           <Route path="/" element={<Marketplace searchQuery={searchQuery} />} />
-          <Route path="/agents" element={<Marketplace searchQuery={searchQuery} />} />
+          <Route path="/top-agents" element={<TopAgents />} />
           <Route path="/agents/:id" element={<AgentDetail />} />
           <Route path="/profile" element={<Profile />} />
         </Routes>

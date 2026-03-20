@@ -91,3 +91,10 @@ type AgentSuggestion struct {
 	Category string  `json:"category"`
 	Price    float64 `json:"price"`
 }
+
+type ReviewListResponse struct {
+	Reviews []Review `json:"reviews"`
+	Total   int      `json:"total"`
+	Page    int      `json:"page"`
+	Limit   int      `json:"limit"`
+}

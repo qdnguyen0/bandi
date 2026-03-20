@@ -69,7 +69,7 @@ export default function AgentCard({ agent, index = 0 }: Props) {
     setSummaryError(null)
     setShowSummary(true)
     try {
-      const result = await fetchAgentSummary(agent)
+      const result = await fetchAgentSummary(agent.id, agent.description, agent.rating, agent.review_count)
       setSummary(result)
     } catch (err) {
       setSummaryError(err instanceof Error ? err.message : 'Failed to generate summary')
@@ -283,9 +283,6 @@ export default function AgentCard({ agent, index = 0 }: Props) {
               border: '1px solid rgba(255,0,255,0.3)',
               backdropFilter: 'blur(16px)',
               boxShadow: '0 4px 20px rgba(0,0,0,0.6), 0 0 15px rgba(255,0,255,0.15)',
-              maxHeight: '160px',
-              display: 'flex',
-              flexDirection: 'column',
             }}
             onClick={e => e.stopPropagation()}
           >
@@ -295,8 +292,12 @@ export default function AgentCard({ agent, index = 0 }: Props) {
             >
               x
             </button>
-            <div className="text-[9px] text-white/25 font-mono uppercase tracking-widest mb-1.5 shrink-0">AI Summary</div>
-            <div className="overflow-y-auto min-h-0 pr-3" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,0,255,0.3) transparent' }}>
+            <div className="text-[9px] text-white/25 font-mono uppercase tracking-widest mb-1.5">AI Summary</div>
+            <div
+              className="overflow-y-scroll pr-3"
+              style={{ maxHeight: '150px', overscrollBehavior: 'contain', scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,0,255,0.3) transparent' }}
+              onWheel={e => e.stopPropagation()}
+            >
               {summaryLoading && (
                 <div className="text-[11px] text-white/40 font-mono animate-pulse">Generating...</div>
               )}

@@ -2,7 +2,8 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Agent } from '../types'
-import { fetchAgent, purchaseAgent, fetchAgentSummary } from '../api'
+import { fetchAgent, purchaseAgent, fetchAgentSummary, fetchReviews } from '../api'
+import type { ReviewsResponse } from '../api'
 
 // Use mock data when API is unavailable (same source as Marketplace)
 import { MOCK_AGENTS } from './Marketplace'
@@ -33,6 +34,10 @@ export default function AgentDetail() {
   const [summaryError, setSummaryError] = useState<string | null>(null)
   const [showSummary, setShowSummary] = useState(false)
   const summaryRef = useRef<HTMLDivElement>(null)
+  const [reviewData, setReviewData] = useState<ReviewsResponse | null>(null)
+  const [reviewPage, setReviewPage] = useState(1)
+  const [reviewLoading, setReviewLoading] = useState(false)
+  const reviewsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!showSummary) return
@@ -58,6 +63,20 @@ export default function AgentDetail() {
       .finally(() => setLoading(false))
   }, [id, navigate])
 
+  useEffect(() => {
+    if (!agent) return
+    setReviewLoading(true)
+    fetchReviews(agent.id, reviewPage, 10)
+      .then(setReviewData)
+      .catch(() => {})
+      .finally(() => setReviewLoading(false))
+  }, [agent, reviewPage])
+
+  const handlePageChange = (page: number) => {
+    setReviewPage(page)
+    reviewsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   const handlePurchase = async (type: 'buy' | 'rent' | 'trial') => {
     if (!agent) return
     setPurchasing(true)
@@ -81,7 +100,7 @@ export default function AgentDetail() {
     setSummaryError(null)
     setShowSummary(true)
     try {
-      const result = await fetchAgentSummary(agent)
+      const result = await fetchAgentSummary(agent.id, agent.description, agent.rating, agent.review_count)
       setSummary(result)
     } catch (err) {
       setSummaryError(err instanceof Error ? err.message : 'Failed to generate summary')
@@ -259,25 +278,25 @@ export default function AgentDetail() {
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute left-0 bottom-full mb-2 z-50 w-80 p-4 rounded-lg"
+                    className="absolute left-0 bottom-full mb-2 z-50 w-80 sm:w-96 p-4 rounded-lg"
                     style={{
                       background: 'rgba(15,5,25,0.95)',
                       border: '1px solid rgba(255,0,255,0.3)',
                       backdropFilter: 'blur(16px)',
                       boxShadow: '0 4px 20px rgba(0,0,0,0.6), 0 0 15px rgba(255,0,255,0.15)',
-                      maxHeight: '200px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                    }}
-                  >
+                    }}>
                     <button
                       onClick={() => setShowSummary(false)}
                       className="absolute top-2 right-2.5 text-white/30 hover:text-white/60 text-xs font-mono cursor-pointer z-10"
                     >
                       x
                     </button>
-                    <div className="text-[9px] text-white/25 font-mono uppercase tracking-widest mb-2 shrink-0">AI Summary</div>
-                    <div className="overflow-y-auto min-h-0 pr-3" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,0,255,0.3) transparent' }}>
+                    <div className="text-[9px] text-white/25 font-mono uppercase tracking-widest mb-2">AI Summary</div>
+                    <div
+                      className="overflow-y-scroll pr-3"
+                      style={{ maxHeight: '180px', overscrollBehavior: 'contain', scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,0,255,0.3) transparent' }}
+                      onWheel={e => e.stopPropagation()}
+                    >
                       {summaryLoading && (
                         <div className="text-sm text-white/40 font-mono animate-pulse">Generating...</div>
                       )}
@@ -311,9 +330,10 @@ export default function AgentDetail() {
           )}
         </motion.div>
 
-        {/* Comments section */}
-        {agent.comments && agent.comments.length > 0 && (
+        {/* Reviews section — paginated */}
+        {agent.review_count > 0 && (
           <motion.div
+            ref={reviewsRef}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
@@ -323,40 +343,134 @@ export default function AgentDetail() {
               className="text-lg font-bold tracking-tight mb-6"
               style={{ fontFamily: "'Orbitron', sans-serif", color: '#00ffff' }}
             >
-              Reviews ({agent.comments.length})
+              Reviews ({agent.review_count})
             </h2>
 
-            <div className="space-y-4">
-              {agent.comments.map(comment => (
-                <div
-                  key={comment.id}
-                  className="p-4 rounded-lg"
-                  style={{ background: 'rgba(0,255,255,0.02)', border: '1px solid rgba(0,255,255,0.06)' }}
-                >
-                  <div className="flex items-start gap-3">
-                    <img
-                      src={comment.avatar}
-                      alt={comment.user}
-                      className="w-8 h-8 rounded-full shrink-0"
-                      style={{ border: '1px solid rgba(0,255,255,0.15)' }}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold font-mono text-neonCyan/80">{comment.user}</span>
-                          <StarRating rating={comment.rating} />
+            {reviewLoading ? (
+              <div className="text-sm text-neonCyan/50 font-mono animate-pulse py-4">Loading reviews...</div>
+            ) : reviewData && reviewData.reviews.length > 0 ? (
+              <>
+                <div className="space-y-4">
+                  {reviewData.reviews.map(comment => (
+                    <div
+                      key={comment.id}
+                      className="p-4 rounded-lg"
+                      style={{ background: 'rgba(0,255,255,0.02)', border: '1px solid rgba(0,255,255,0.06)' }}
+                    >
+                      <div className="flex items-start gap-3">
+                        <img
+                          src={comment.avatar}
+                          alt={comment.user}
+                          className="w-8 h-8 rounded-full shrink-0"
+                          style={{ border: '1px solid rgba(0,255,255,0.15)' }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold font-mono text-neonCyan/80">{comment.user}</span>
+                              <StarRating rating={comment.rating} />
+                            </div>
+                            <span className="text-[10px] text-white/20 font-mono shrink-0">{comment.date}</span>
+                          </div>
+                          <p className="text-xs text-white/50 font-mono leading-relaxed">{comment.text}</p>
                         </div>
-                        <span className="text-[10px] text-white/20 font-mono shrink-0">{comment.date}</span>
                       </div>
-                      <p className="text-xs text-white/50 font-mono leading-relaxed">{comment.text}</p>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+
+                {/* Pagination */}
+                {reviewData.total > reviewData.limit && (
+                  <ReviewPagination
+                    page={reviewData.page}
+                    total={reviewData.total}
+                    limit={reviewData.limit}
+                    onPageChange={handlePageChange}
+                  />
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-white/30 font-mono">No reviews yet.</p>
+            )}
           </motion.div>
         )}
       </div>
     </main>
+  )
+}
+
+function ReviewPagination({
+  page,
+  total,
+  limit,
+  onPageChange,
+}: {
+  page: number
+  total: number
+  limit: number
+  onPageChange: (page: number) => void
+}) {
+  const totalPages = Math.ceil(total / limit)
+
+  // Build visible page numbers: always show first, last, and a window around current
+  const pages: (number | 'ellipsis')[] = []
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || (i >= page - 1 && i <= page + 1)) {
+      pages.push(i)
+    } else if (pages[pages.length - 1] !== 'ellipsis') {
+      pages.push('ellipsis')
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-center gap-1 mt-6 pt-4" style={{ borderTop: '1px solid rgba(0,255,255,0.06)' }}>
+      {/* Prev */}
+      <button
+        onClick={() => onPageChange(page - 1)}
+        disabled={page <= 1}
+        className="px-2 py-1 text-xs font-mono tracking-wider transition-colors cursor-pointer disabled:opacity-20 disabled:cursor-default"
+        style={{ color: 'rgba(0,255,255,0.6)' }}
+      >
+        &laquo;
+      </button>
+
+      {pages.map((p, idx) =>
+        p === 'ellipsis' ? (
+          <span key={`e-${idx}`} className="px-1 text-xs font-mono text-white/20">...</span>
+        ) : (
+          <button
+            key={p}
+            onClick={() => onPageChange(p)}
+            className="w-8 h-8 rounded text-xs font-mono font-bold transition-all duration-150 cursor-pointer"
+            style={
+              p === page
+                ? {
+                    color: '#00ffff',
+                    background: 'rgba(0,255,255,0.15)',
+                    border: '1px solid rgba(0,255,255,0.4)',
+                    boxShadow: '0 0 8px rgba(0,255,255,0.2)',
+                  }
+                : {
+                    color: 'rgba(255,255,255,0.4)',
+                    background: 'transparent',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                  }
+            }
+          >
+            {p}
+          </button>
+        )
+      )}
+
+      {/* Next */}
+      <button
+        onClick={() => onPageChange(page + 1)}
+        disabled={page >= totalPages}
+        className="px-2 py-1 text-xs font-mono tracking-wider transition-colors cursor-pointer disabled:opacity-20 disabled:cursor-default"
+        style={{ color: 'rgba(0,255,255,0.6)' }}
+      >
+        &raquo;
+      </button>
+    </div>
   )
 }

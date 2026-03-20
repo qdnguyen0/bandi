@@ -89,13 +89,46 @@ func (h *AgentHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reviews, _ := h.db.GetReviewsByAgent(id)
+	reviews, _, _ := h.db.GetReviewsByAgent(id, 1, 10)
 	agent.Reviews = reviews
 	rating, count, _ := h.db.GetAgentRating(id)
 	agent.Rating = rating
 	agent.ReviewCount = count
 
 	jsonResp(w, http.StatusOK, agent)
+}
+
+func (h *AgentHandler) Reviews(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		jsonError(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 50 {
+		limit = 10
+	}
+
+	reviews, total, err := h.db.GetReviewsByAgent(id, page, limit)
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if reviews == nil {
+		reviews = []models.Review{}
+	}
+
+	jsonResp(w, http.StatusOK, models.ReviewListResponse{
+		Reviews: reviews,
+		Total:   total,
+		Page:    page,
+		Limit:   limit,
+	})
 }
 
 func (h *AgentHandler) Create(w http.ResponseWriter, r *http.Request) {

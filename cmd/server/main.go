@@ -53,6 +53,7 @@ func main() {
 	r.Get("/api/agents", agentH.List)
 	r.Get("/api/agents/suggest", agentH.Suggest)
 	r.Get("/api/agents/{id}", agentH.Get)
+	r.Get("/api/agents/{id}/reviews", agentH.Reviews)
 	r.Post("/api/agents/{id}/summary", summaryH.Generate)
 	r.Post("/api/webhooks/stripe", stripeH.HandleWebhook)
 

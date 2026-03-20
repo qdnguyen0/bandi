@@ -61,7 +61,7 @@ export default function Header({ onSearchOpen }: { onSearchOpen: () => void }) {
               Marketplace
             </NavLink>
             <NavLink
-              to="/agents"
+              to="/top-agents"
               className={({ isActive }) =>
                 `text-sm tracking-wider uppercase font-mono transition-all duration-200 ${
                   isActive
@@ -69,8 +69,13 @@ export default function Header({ onSearchOpen }: { onSearchOpen: () => void }) {
                     : 'text-white/50 hover:text-neonCyan'
                 }`
               }
+              style={({ isActive }) =>
+                isActive
+                  ? { textShadow: '0 0 8px #00ffff' }
+                  : {}
+              }
             >
-              Browse
+              Top Agents
             </NavLink>
           </nav>
 
@@ -133,6 +138,13 @@ export default function Header({ onSearchOpen }: { onSearchOpen: () => void }) {
               onClick={() => setMenuOpen(false)}
             >
               Marketplace
+            </NavLink>
+            <NavLink
+              to="/top-agents"
+              className="text-sm tracking-wider uppercase font-mono text-white/60 hover:text-neonCyan transition-colors"
+              onClick={() => setMenuOpen(false)}
+            >
+              Top Agents
             </NavLink>
             <button
               onClick={() => { onSearchOpen(); setMenuOpen(false) }}

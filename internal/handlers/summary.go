@@ -73,14 +73,19 @@ func (h *SummaryHandler) Generate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var prompt strings.Builder
-	prompt.WriteString("Write a concise marketplace summary of this AI agent for a potential buyer in 3-4 sentences.\n")
-	prompt.WriteString("Cover what it does, mention the rating, and describe the general sentiment from user reviews (don't summarize individual comments).\n\n")
+	prompt.WriteString("Write a 3-sentence marketplace summary for a potential buyer of this AI agent.\n")
+	prompt.WriteString("Sentence 1: What it does. Sentence 2: The rating (state the exact number out of 5 and review count) and whether that's excellent/good/mixed/poor. Sentence 3: Overall review sentiment — what users praise and any common complaints.\n")
+	prompt.WriteString("Do NOT quote or name individual reviewers. Do NOT use bullet points or headers. Plain prose only.\n\n")
 	prompt.WriteString(fmt.Sprintf("Agent Description: %s\n", req.Description))
 	prompt.WriteString(fmt.Sprintf("Overall Rating: %.1f out of 5 (%d reviews)\n", req.Rating, req.ReviewCount))
 	if len(req.Comments) > 0 {
-		prompt.WriteString("\nUser Reviews:\n")
-		for _, c := range req.Comments {
-			prompt.WriteString(fmt.Sprintf("- %s rated it %.0f/5: \"%s\"\n", c.User, c.Rating, c.Text))
+		comments := req.Comments
+		if len(comments) > 15 {
+			comments = comments[:15]
+		}
+		prompt.WriteString("\nSample User Reviews:\n")
+		for _, c := range comments {
+			prompt.WriteString(fmt.Sprintf("- %.0f/5: \"%s\"\n", c.Rating, c.Text))
 		}
 	}
 
@@ -88,7 +93,7 @@ func (h *SummaryHandler) Generate(w http.ResponseWriter, r *http.Request) {
 		Contents: []geminiContent{
 			{Parts: []geminiPart{{Text: prompt.String()}}},
 		},
-		GenerationConfig: geminiGenerationConfig{MaxOutputTokens: 512},
+		GenerationConfig: geminiGenerationConfig{MaxOutputTokens: 2048},
 	}
 
 	reqBody, err := json.Marshal(body)

@@ -143,20 +143,34 @@ export async function suggestAgents(q: string, limit = 5): Promise<AgentSuggesti
   return request<AgentSuggestion[]>(`/agents/suggest?${qs}`)
 }
 
-export async function fetchAgentSummary(agent: Agent): Promise<string> {
+export async function fetchAgentSummary(agentId: number, description: string, rating: number, reviewCount: number): Promise<string> {
+  // Fetch up to 30 reviews to give the model a good sentiment sample
+  const reviewData = await fetchReviews(agentId, 1, 30)
   const body = {
-    description: agent.description,
-    rating: agent.rating,
-    review_count: agent.review_count,
-    comments: (agent.comments ?? []).map(c => ({
+    description,
+    rating,
+    review_count: reviewCount,
+    comments: reviewData.reviews.map(c => ({
       user: c.user,
       text: c.text,
       rating: c.rating,
     })),
   }
-  const res = await request<{ summary: string }>(`/agents/${agent.id}/summary`, {
+  const res = await request<{ summary: string }>(`/agents/${agentId}/summary`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
   return res.summary
+}
+
+export interface ReviewsResponse {
+  reviews: { id: number; user: string; avatar: string; text: string; rating: number; date: string }[]
+  total: number
+  page: number
+  limit: number
+}
+
+export async function fetchReviews(agentId: number, page = 1, limit = 10): Promise<ReviewsResponse> {
+  const qs = new URLSearchParams({ page: String(page), limit: String(limit) })
+  return request<ReviewsResponse>(`/agents/${agentId}/reviews?${qs}`)
 }
