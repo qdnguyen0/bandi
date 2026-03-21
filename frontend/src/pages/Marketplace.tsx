@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import AgentCard from '../components/AgentCard'
+import PeekingAgents from '../components/PeekingAgents'
 import type { Agent } from '../types'
 import { fetchAgents } from '../api'
 
@@ -301,6 +302,9 @@ export default function Marketplace({ searchQuery }: { searchQuery: string }) {
       {/* Scanline effect */}
       <div className="scanlines" />
 
+      {/* Hero + filters wrapper — PeekingAgents is absolute inside here so heads scroll with page */}
+      <div className="relative">
+
       {/* Hero section */}
       <section className="relative overflow-hidden">
         <div className="hero-glow absolute inset-0 pointer-events-none" />
@@ -320,16 +324,33 @@ export default function Marketplace({ searchQuery }: { searchQuery: string }) {
           </motion.div>
 
           {/* Headline */}
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="font-black tracking-tight mb-6"
-            style={{ fontFamily: "'Orbitron', sans-serif" }}
-          >
-            <span className="text-neonCyan text-2xl sm:text-4xl block mb-2" style={{ textShadow: '0 0 20px rgba(0,255,255,0.4)' }}>Find Your Next</span>
-            <span className="text-white/80 text-5xl sm:text-7xl">AI Agent</span>
-          </motion.h1>
+          <div className="relative mb-6">
+            <motion.div
+              animate={{ filter: ['hue-rotate(0deg)', 'hue-rotate(360deg)'] }}
+              transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
+              style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: '80%',
+                height: '220%',
+                background: 'radial-gradient(ellipse at 50% 50%, rgba(0,255,255,0.4) 0%, transparent 65%)',
+                pointerEvents: 'none',
+                zIndex: 0,
+              }}
+            />
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="font-black tracking-tight relative"
+              style={{ fontFamily: "'Orbitron', sans-serif", zIndex: 1 }}
+            >
+              <span className="text-neonCyan text-2xl sm:text-4xl block mb-2" style={{ textShadow: '0 0 20px rgba(0,255,255,0.4)' }}>Find Your Next</span>
+              <span className="text-white/80 text-5xl sm:text-7xl">AI Agent</span>
+            </motion.h1>
+          </div>
 
           {/* Subheadline */}
           <motion.p
@@ -383,6 +404,9 @@ export default function Marketplace({ searchQuery }: { searchQuery: string }) {
           ))}
         </div>
       </section>
+
+      <PeekingAgents />
+      </div>
 
       {/* Agent grid */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">

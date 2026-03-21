@@ -27,10 +27,11 @@ export default function UserMenu() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-2 px-2 py-1 rounded transition-colors hover:bg-neonCyan/5"
+        className="flex items-center gap-2 px-2 py-1 rounded transition-all duration-200 hover:bg-neonCyan/5 hover:text-neonCyan group"
+        style={{ transition: 'color 0.2s, background 0.2s' }}
       >
-        <img src={avatarUrl} alt="" className="w-7 h-7 rounded-full" style={{ border: '1px solid rgba(0,255,255,0.3)' }} />
-        <span className="hidden sm:block text-xs font-mono text-white/70 max-w-[120px] truncate">
+        <img src={avatarUrl} alt="" className="w-7 h-7 rounded-full transition-all duration-200 group-hover:shadow-[0_0_8px_rgba(0,255,255,0.6)]" style={{ border: '1px solid rgba(0,255,255,0.3)' }} />
+        <span className="hidden sm:block text-xs font-mono text-white/70 max-w-[120px] truncate transition-all duration-200 group-hover:text-neonCyan group-hover:[text-shadow:0_0_8px_rgba(0,255,255,0.8)]">
           {user.first_name} {user.last_name}
         </span>
       </button>
