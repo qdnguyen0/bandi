@@ -549,7 +549,7 @@ function DevAgentRow({ agent, onClick }: { agent: Agent; onClick: () => void }) 
     >
       <div
         className="absolute inset-0 rounded-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-        style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(127,0,255,0.12) 0%, transparent 70%)' }}
+        style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(127,0,255,0.24) 0%, transparent 70%)' }}
       />
       <img
         src={agent.avatar}

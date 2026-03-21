@@ -12,10 +12,10 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'reviews', label: 'Most Reviewed' },
 ]
 
-const TROPHY: Record<number, { emoji: string; color: string; glow: string; label: string }> = {
-  0: { emoji: '\uD83C\uDFC6', color: '#ffd700', glow: 'rgba(255,215,0,0.4)', label: '1st' },
-  1: { emoji: '\uD83E\uDD48', color: '#c0c0c0', glow: 'rgba(192,192,192,0.35)', label: '2nd' },
-  2: { emoji: '\uD83E\uDD49', color: '#cd7f32', glow: 'rgba(205,127,50,0.35)', label: '3rd' },
+const TROPHY: Record<number, { emoji: string; color: string; glow: string; hoverGlow: string; label: string }> = {
+  0: { emoji: '\uD83C\uDFC6', color: '#ffd700', glow: 'rgba(255,215,0,0.4)', hoverGlow: 'rgba(255,215,0,0.8)', label: '1st' },
+  1: { emoji: '\uD83E\uDD48', color: '#c0c0c0', glow: 'rgba(192,192,192,0.35)', hoverGlow: 'rgba(192,192,192,0.7)', label: '2nd' },
+  2: { emoji: '\uD83E\uDD49', color: '#cd7f32', glow: 'rgba(205,127,50,0.35)', hoverGlow: 'rgba(205,127,50,0.7)', label: '3rd' },
 }
 
 function sortAgents(agents: Agent[], key: SortKey): Agent[] {
@@ -157,7 +157,7 @@ export default function TopAgents() {
             >
               <div
                 className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(0,255,255,0.08) 0%, transparent 70%)' }}
+                style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(0,255,255,0.16) 0%, transparent 70%)' }}
               />
               {/* Rank */}
               <span className="text-lg font-bold font-mono text-white/20 w-8 text-center shrink-0">
@@ -225,7 +225,7 @@ function PodiumCard({
     >
       <div
         className="absolute inset-0 rounded-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-        style={{ background: `radial-gradient(ellipse at 50% 0%, ${trophy.glow} 0%, transparent 70%)` }}
+        style={{ background: `radial-gradient(ellipse at 50% 0%, ${trophy.hoverGlow} 0%, transparent 70%)` }}
       />
       {/* Trophy */}
       <span className="text-3xl sm:text-4xl mb-2" style={{ filter: `drop-shadow(0 0 8px ${trophy.glow})` }}>
