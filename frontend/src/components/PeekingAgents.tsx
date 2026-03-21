@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import { fetchAgents } from '../api'
+import type { Agent } from '../types'
 
 interface PeekAgent {
   id: number
@@ -9,26 +11,30 @@ interface PeekAgent {
   bgColor: string
   tagline: string
   capabilities: [string, string, string]
+  avatar: string
 }
 
-const PEEK_AGENTS: PeekAgent[] = [
-  { id: 1, name: 'NeuralScribe', category: 'nlp', bgColor: '00ffff',
-    tagline: "I turn words into magic.", capabilities: ['summarization', 'chain-of-thought', 'doc generation'] },
-  { id: 2, name: 'VisionCore', category: 'vision', bgColor: '7f00ff',
-    tagline: "I see what you can't.", capabilities: ['object detection', 'OCR', 'image QA'] },
-  { id: 3, name: 'AutoFlow', category: 'automation', bgColor: 'ff00ff',
-    tagline: "I automate the boring stuff.", capabilities: ['API orchestration', 'DAG builder', 'retry logic'] },
-  { id: 4, name: 'DataPulse', category: 'analytics', bgColor: '00ff88',
-    tagline: "I predict before it happens.", capabilities: ['anomaly detection', 'forecasting', 'BI dashboards'] },
-  { id: 5, name: 'CipherGuard', category: 'security', bgColor: 'ff4444',
-    tagline: "I catch what slips through.", capabilities: ['SAST scanning', 'secrets detection', 'SOC2 reports'] },
-  { id: 6, name: 'LangBridge', category: 'nlp', bgColor: '00ffff',
-    tagline: "100 languages, zero friction.", capabilities: ['neural translation', 'tone control', 'streaming'] },
-  { id: 7, name: 'PixelForge', category: 'vision', bgColor: '7f00ff',
-    tagline: "I make pixels obey.", capabilities: ['inpainting', 'style transfer', 'upscaling'] },
-  { id: 8, name: 'PipelinePilot', category: 'automation', bgColor: 'ff00ff',
-    tagline: "Ship faster. Break less.", capabilities: ['CI/CD generation', 'GitLab CI', 'auto-rollback'] },
-]
+// Flavor text per category — shown in the speech bubble
+const CATEGORY_FLAVOR: Record<string, { tagline: string; capabilities: [string, string, string]; bgColor: string }> = {
+  nlp:        { tagline: "I turn words into magic.",     capabilities: ['summarization', 'chain-of-thought', 'doc generation'], bgColor: '00ffff' },
+  vision:     { tagline: "I see what you can't.",        capabilities: ['object detection', 'OCR', 'image QA'],                  bgColor: '7f00ff' },
+  automation: { tagline: "I automate the boring stuff.", capabilities: ['API orchestration', 'DAG builder', 'retry logic'],      bgColor: 'ff00ff' },
+  analytics:  { tagline: "I predict before it happens.", capabilities: ['anomaly detection', 'forecasting', 'BI dashboards'],    bgColor: '00ff88' },
+  security:   { tagline: "I catch what slips through.",  capabilities: ['SAST scanning', 'secrets detection', 'SOC2 reports'],  bgColor: 'ff4444' },
+  devops:     { tagline: "Ship faster. Break less.",     capabilities: ['CI/CD generation', 'GitLab CI', 'auto-rollback'],      bgColor: 'ff00ff' },
+  data:       { tagline: "I find patterns everywhere.",  capabilities: ['data pipelines', 'ETL', 'reporting'],                  bgColor: '00ff88' },
+}
+const DEFAULT_FLAVOR = {
+  tagline: "I'm here to help.",
+  capabilities: ['task automation', 'API calls', 'smart decisions'] as [string, string, string],
+  bgColor: '00ffff',
+}
+
+function agentToPeekAgent(a: Agent): PeekAgent {
+  const cat = a.category.toLowerCase()
+  const flavor = CATEGORY_FLAVOR[cat] ?? DEFAULT_FLAVOR
+  return { id: a.id, name: a.name, category: cat, avatar: a.avatar, ...flavor }
+}
 
 const CATEGORY_COLORS: Record<string, { text: string; glow: string; border: string }> = {
   nlp: { text: '#00ffff', glow: 'rgba(0,255,255,0.4)', border: 'rgba(0,255,255,0.35)' },
@@ -167,7 +173,7 @@ function PeekHead({ agent, side, topPct, onExited }: PeekHeadProps) {
         }}
       >
         <img
-          src={`https://api.dicebear.com/9.x/bottts/svg?seed=${agent.name}&backgroundColor=${agent.bgColor}`}
+          src={agent.avatar}
           alt={agent.name}
           style={{ width: '100%', height: '100%', display: 'block' }}
         />
@@ -283,7 +289,9 @@ function randomTop() {
 
 export default function PeekingAgents() {
   const queueRef = useRef<PeekAgent[]>([])
+  const sourceRef = useRef<PeekAgent[]>([])
 
+  const [ready, setReady] = useState(false)
   const [leftAgent, setLeftAgent] = useState<PeekAgent | null>(null)
   const [rightAgent, setRightAgent] = useState<PeekAgent | null>(null)
   const [leftKey, setLeftKey] = useState(0)
@@ -291,9 +299,20 @@ export default function PeekingAgents() {
   const [leftTop, setLeftTop] = useState(randomTop)
   const [rightTop, setRightTop] = useState(randomTop)
 
+  // Fetch real agents once on mount
+  useEffect(() => {
+    fetchAgents({ limit: 50, page: 1 })
+      .then(res => {
+        sourceRef.current = res.agents.map(agentToPeekAgent)
+        queueRef.current = shuffleArray(sourceRef.current)
+        setReady(true)
+      })
+      .catch(() => { /* silently skip if API unavailable */ })
+  }, [])
+
   const getNextAgent = useCallback((exclude?: number): PeekAgent => {
     if (queueRef.current.length === 0) {
-      queueRef.current = shuffleArray(PEEK_AGENTS)
+      queueRef.current = shuffleArray(sourceRef.current)
     }
     let idx = 0
     if (exclude !== undefined) {
@@ -305,6 +324,7 @@ export default function PeekingAgents() {
   }, [])
 
   useEffect(() => {
+    if (!ready) return
     const leftFirst = getNextAgent()
     setLeftAgent(leftFirst)
     setLeftKey(k => k + 1)
@@ -317,7 +337,7 @@ export default function PeekingAgents() {
 
     return () => clearTimeout(t)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [ready])
 
   const handleLeftExited = useCallback(() => {
     const t = setTimeout(() => {
