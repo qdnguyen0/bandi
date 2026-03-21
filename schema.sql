@@ -39,6 +39,7 @@ CREATE INDEX IF NOT EXISTS idx_agents_category ON agents(category);
 CREATE INDEX IF NOT EXISTS idx_agents_dev_id ON agents(dev_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_agents_name ON agents(name);
 CREATE INDEX IF NOT EXISTS idx_purchases_user_id ON purchases(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_purchases_user_agent ON purchases(user_id, agent_id);
 
 -- FTS5 virtual table for fast full-text search on agents
 CREATE VIRTUAL TABLE IF NOT EXISTS agents_fts USING fts5(

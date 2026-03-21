@@ -150,11 +150,15 @@ export default function TopAgents() {
             <button
               key={agent.id}
               onClick={() => navigate(`/agents/${agent.id}`)}
-              className="flex items-center gap-4 w-full text-left px-5 py-4 transition-colors cursor-pointer hover:bg-neonCyan/5"
+              className="relative overflow-hidden flex items-center gap-4 w-full text-left px-5 py-4 transition-colors cursor-pointer group"
               style={{
                 borderBottom: i < sorted.length - 4 ? '1px solid rgba(0,255,255,0.06)' : undefined,
               }}
             >
+              <div
+                className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(0,255,255,0.08) 0%, transparent 70%)' }}
+              />
               {/* Rank */}
               <span className="text-lg font-bold font-mono text-white/20 w-8 text-center shrink-0">
                 {i + 4}
@@ -211,7 +215,7 @@ function PodiumCard({
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center text-center p-4 sm:p-6 rounded-lg transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+      className="relative overflow-hidden flex flex-col items-center text-center p-4 sm:p-6 rounded-lg transition-all duration-200 cursor-pointer hover:scale-[1.02] group"
       style={{
         background: `linear-gradient(180deg, ${trophy.glow} 0%, rgba(0,0,0,0) 60%)`,
         border: `1px solid ${trophy.color}40`,
@@ -219,6 +223,10 @@ function PodiumCard({
         marginTop: isGold ? 0 : '1.5rem',
       }}
     >
+      <div
+        className="absolute inset-0 rounded-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+        style={{ background: `radial-gradient(ellipse at 50% 0%, ${trophy.glow} 0%, transparent 70%)` }}
+      />
       {/* Trophy */}
       <span className="text-3xl sm:text-4xl mb-2" style={{ filter: `drop-shadow(0 0 8px ${trophy.glow})` }}>
         {trophy.emoji}

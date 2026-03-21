@@ -174,9 +174,13 @@ function AgentMiniCard({
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-4 p-4 rounded-lg text-left transition-colors w-full cursor-pointer"
+      className="relative overflow-hidden flex items-center gap-4 p-4 rounded-lg text-left transition-colors w-full cursor-pointer group"
       style={{ background: 'rgba(0,255,255,0.03)', border: '1px solid rgba(0,255,255,0.08)' }}
     >
+      <div
+        className="absolute inset-0 rounded-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+        style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(0,255,255,0.12) 0%, transparent 70%)' }}
+      />
       <img
         src={agent.avatar}
         alt={agent.name}
