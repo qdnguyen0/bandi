@@ -29,10 +29,10 @@ BandiAI is a full-stack marketplace where developers publish AI agents and users
 │                    Go HTTP Server                           │
 │                  chi router  :8080                          │
 │                                                             │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
-│  │  Auth        │  │  Agents      │  │  Purchases       │  │
-│  │  (JWT)      │  │  (upload/    │  │  (buy / rent)    │  │
-│  └──────────────┘  │  download)   │  └──────────────────┘  │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐   │
+│  │  Auth        │  │  Agents      │  │  Purchases       │   │
+│  │  (JWT)       │  │  (upload/    │  │  (buy / rent)    │   │
+│  └──────────────┘  │  download)   │  └──────────────────┘   │
 │                    └──────────────┘                         │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │  Middleware: CORS · Rate Limit · Logger · Auth JWT   │   │
